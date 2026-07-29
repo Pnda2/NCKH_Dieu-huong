@@ -1,6 +1,7 @@
 import heapq
 import json
 import math
+import os
 import random
 import threading
 import time
@@ -8,12 +9,13 @@ import time
 import paho.mqtt.client as mqtt
 
 from csi_layer import CSILayer
+from dynamic_routing import DynamicEvacuationRouter, WeightParameters, corridor_capacity, dynamic_edge_cost
 from guidance_controller import GuidanceController
 
 
-MQTT_BROKER = "127.0.0.1"
-MQTT_PORT = 1883
-CONFIG_FILE = "config.json"
+MQTT_BROKER = os.getenv("WIEVAC_MQTT_HOST", "127.0.0.1")
+MQTT_PORT = int(os.getenv("WIEVAC_MQTT_PORT", "1883"))
+CONFIG_FILE = os.path.join(os.path.dirname(__file__), "config.json")
 
 # k(e) is the normalized CSI-derived occupancy of corridor e:
 # 0.0 = empty corridor, 1.0 = fully occupied corridor.
@@ -21,8 +23,8 @@ TICK_SECONDS = 1.0
 FREE_WALKING_SPEED = 1.2
 DEFAULT_INITIAL_OCCUPANCY = (0.20, 0.75)
 BASE_TRANSFER_RATE = 0.025  # equivalent corridor occupancy moved per second
-GAMMA = 1.5
-DELTA = 4.0
+GAMMA = max(0.0, float(os.getenv("WIEVAC_GAMMA", "1.0")))
+DELTA = max(1.0, float(os.getenv("WIEVAC_DELTA", "2.0")))
 ROUTE_CHANGE_PENALTY = 5.0
 LOGIT_THETA = 0.35
 OCCUPANCY_EPSILON = 0.005
@@ -34,11 +36,20 @@ MIN_SECONDARY_ROUTE_SHARE = 0.10
 MIN_RECEIVING_SCORE = 0.01
 
 map_config = {"areas": [], "edges": []}
+routing_parameters = WeightParameters(
+    free_walking_speed=float(os.getenv("WIEVAC_FREE_WALKING_SPEED", str(FREE_WALKING_SPEED))),
+    gamma=GAMMA,
+    delta=DELTA,
+    hazard_block_threshold=float(os.getenv("WIEVAC_HAZARD_BLOCK_THRESHOLD", "100")),
+    people_per_square_meter=float(os.getenv("WIEVAC_PEOPLE_PER_SQM", "2.0")),
+).validated()
+routing_service = None
 simulation_active = False
 simulation_thread = None
 shutting_down = False
 blocked_edges = set()
 blocked_exits = set()
+edge_hazards = {}
 
 state_lock = threading.RLock()
 edge_occupancy = {}
@@ -54,14 +65,18 @@ guidance_controller = GuidanceController()
 
 
 def clamp_occupancy(value):
-    return max(0.0, min(1.0, float(value)))
+    try:
+        return max(0.0, min(1.0, float(value)))
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def load_config():
-    global map_config
+    global map_config, routing_service
     try:
         with open(CONFIG_FILE, "r", encoding="utf-8") as file:
             map_config = json.load(file)
+            routing_service = DynamicEvacuationRouter(map_config, routing_parameters)
             guidance_controller.configure(map_config)
             print("Loaded config from file.")
     except Exception as exc:
@@ -79,11 +94,15 @@ def save_config(data):
 
 
 def calculate_dynamic_weight(edge, k, switching=False):
-    """w(e) = t0(e) * [1 + gamma * k(e)^delta] + H(e)."""
-    length = max(1.0, float(edge.get("length", 10.0)))
-    t0 = length / FREE_WALKING_SPEED
-    dynamic_cost = t0 * (1.0 + GAMMA * (clamp_occupancy(k) ** DELTA))
-    return dynamic_cost + (ROUTE_CHANGE_PENALTY if switching else 0.0)
+    """Safe required weight: t0 * [1 + gamma * (c/Cmax)^delta] + H."""
+    capacity = corridor_capacity(edge, routing_parameters)
+    return dynamic_edge_cost(
+        edge,
+        current_people=clamp_occupancy(k) * capacity,
+        hazard=edge_hazards.get(edge.get("id"), edge.get("hazard", 0.0)),
+        blocked=edge.get("id") in blocked_edges,
+        parameters=routing_parameters,
+    )
 
 
 def calculate_receiving_capacity(edge, k):
@@ -134,83 +153,25 @@ def build_graph():
 
 
 def compute_routes(graph, edge_map, occupancy):
-    """Reverse Dijkstra and next-edge probabilities using measured k(e)."""
+    """Use persistent D* Lite states and only repair changed corridor costs."""
+    global routing_service
+    if routing_service is None:
+        routing_service = DynamicEvacuationRouter(map_config, routing_parameters)
+    routing_service.update(occupancy, edge_hazards, blocked_edges, blocked_exits)
     exits = {
-        area["id"]
-        for area in map_config.get("areas", [])
+        area["id"] for area in map_config.get("areas", [])
         if area.get("type") == "exit" and area["id"] not in blocked_exits
     }
-    distances = {area_id: math.inf for area_id in graph}
-    queue = []
-    for exit_id in exits:
-        if exit_id in graph:
-            distances[exit_id] = 0.0
-            heapq.heappush(queue, (0.0, exit_id))
-
-    while queue:
-        distance, node_id = heapq.heappop(queue)
-        if distance > distances[node_id]:
-            continue
-        for neighbour, edge_id in graph[node_id]:
-            edge = edge_map[edge_id]
-            candidate = distance + calculate_dynamic_weight(
-                edge, occupancy.get(edge_id, 0.0)
-            )
-            if candidate < distances[neighbour]:
-                distances[neighbour] = candidate
-                heapq.heappush(queue, (candidate, neighbour))
-
+    distances = {}
     route_options = {}
-    for node_id, neighbours in graph.items():
-        if node_id in exits or not math.isfinite(distances[node_id]):
+    for area_id, route in routing_service.routes_for_all_areas().items():
+        distances[area_id] = route["cost"]
+        edge_id = route["next_edge"]
+        if not edge_id:
             continue
-        options = []
-        for neighbour, edge_id in neighbours:
-            if not math.isfinite(distances[neighbour]):
-                continue
-            switching = (
-                node_id in previous_next_edge
-                and previous_next_edge[node_id] != edge_id
-            )
-            cost = calculate_dynamic_weight(
-                edge_map[edge_id], occupancy.get(edge_id, 0.0), switching
-            ) + distances[neighbour]
-            if cost <= distances[node_id] + ROUTE_CHANGE_PENALTY + 1e-6:
-                options.append((neighbour, edge_id, cost))
-
-        if not options:
-            continue
-        minimum = min(option[2] for option in options)
-        scores = [
-            calculate_receiving_capacity(
-                edge_map[option[1]], occupancy.get(option[1], 0.0)
-            )
-            * math.exp(-LOGIT_THETA * (option[2] - minimum))
-            for option in options
-        ]
-        total_score = sum(scores)
-        if total_score <= 0:
-            continue
-        ranked_options = sorted(
-            [
-            (option[0], option[1], score / total_score)
-            for option, score in zip(options, scores)
-            if score / total_score >= 0.01
-            ],
-            key=lambda option: option[2],
-            reverse=True,
-        )[:MAX_GUIDANCE_ROUTES]
-        if (
-            len(ranked_options) > 1
-            and ranked_options[1][2] < MIN_SECONDARY_ROUTE_SHARE
-        ):
-            ranked_options = ranked_options[:1]
-        selected_total = sum(option[2] for option in ranked_options)
-        route_options[node_id] = [
-            (neighbour, edge_id, probability / selected_total)
-            for neighbour, edge_id, probability in ranked_options
-        ]
-
+        edge = edge_map[edge_id]
+        neighbour = edge["areaB_id"] if edge["areaA_id"] == area_id else edge["areaA_id"]
+        route_options[area_id] = [(neighbour, edge_id, 1.0)]
     return exits, distances, route_options
 
 
@@ -276,6 +237,11 @@ def publish_state(client, status, step, trapped_ids=None, message=None):
             if simulation_started_at
             else 0
         )
+        metrics = (
+            routing_service.edge_metrics(edge_occupancy, edge_hazards)
+            if routing_service
+            else {}
+        )
         payload = {
             "status": status,
             "step": step,
@@ -288,6 +254,18 @@ def publish_state(client, status, step, trapped_ids=None, message=None):
             ),
             "averageOccupancy": round(sum(values) / len(values), 3) if values else 0.0,
             "occupiedCorridors": sum(value > OCCUPANCY_EPSILON for value in values),
+            "estimatedPeople": round(sum(item["currentPeople"] for item in metrics.values()), 1),
+            "availableExits": sum(
+                1 for area in map_config.get("areas", [])
+                if area.get("type") == "exit" and area.get("id") not in blocked_exits
+            ),
+            "hazardousCorridors": sum(
+                1 for item in metrics.values()
+                if item.get("hazard", 0) > 0 or item.get("blocked")
+            ),
+            "edgeMetrics": metrics,
+            "routingAlgorithm": "D* Lite",
+            "lastUpdated": int(time.time()),
             "trappedCorridors": [
                 {
                     "id": edge_id,
@@ -664,6 +642,7 @@ def on_connect(client, userdata, flags, reason_code, properties=None):
         client.subscribe("building/simulation/reset")
         client.subscribe("building/occupancy/adjust")
         client.subscribe("building/occupancy/input")
+        client.subscribe("building/hazard/adjust")
         client.subscribe("building/incident")
         client.subscribe("building/incident/clear")
         client.subscribe("building/guidance/ack/+")
@@ -672,12 +651,13 @@ def on_connect(client, userdata, flags, reason_code, properties=None):
 
 
 def on_message(client, userdata, msg):
-    global map_config, simulation_active, simulation_thread
+    global map_config, simulation_active, simulation_thread, routing_service
     topic = msg.topic
     if topic == "building/config":
         try:
             data = json.loads(msg.payload.decode("utf-8"))
             map_config = data
+            routing_service = DynamicEvacuationRouter(map_config, routing_parameters)
             guidance_controller.configure(map_config)
             save_config(data)
         except Exception as exc:
@@ -765,6 +745,24 @@ def on_message(client, userdata, msg):
                 "building/occupancy/adjust_ack",
                 json.dumps({"success": False, "error": str(exc)}),
             )
+
+    elif topic == "building/hazard/adjust":
+        try:
+            data = json.loads(msg.payload.decode("utf-8"))
+            edge_id = data.get("edge_id")
+            hazard = max(0.0, float(data.get("hazard", 0.0)))
+            known_edges = {edge.get("id") for edge in map_config.get("edges", [])}
+            if edge_id not in known_edges:
+                raise ValueError("edge_not_found")
+            edge_hazards[edge_id] = hazard
+            publish_log(
+                client,
+                [make_log("alert" if hazard else "routing", f"Nguy cơ tại {edge_id}: {hazard:.0f}")],
+            )
+            if not simulation_active:
+                publish_live_guidance(client)
+        except Exception as exc:
+            publish_log(client, [make_log("alert", f"Dữ liệu nguy cơ không hợp lệ: {exc}")])
 
     elif topic in ("building/incident", "building/incident/clear"):
         try:

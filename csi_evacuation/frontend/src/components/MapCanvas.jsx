@@ -141,16 +141,19 @@ function AreaNode({ area, isSelected, isPendingStart, mode, editTool, isBlocked,
   );
 }
 
-function CorridorEdge({ corridor, areaA, areaB, isSelected, onSelect, mode, occupancyData, isBlocked }) {
+function CorridorEdge({ corridor, areaA, areaB, isSelected, onSelect, mode, occupancyData, isBlocked, edgeMetric }) {
   if (!areaA || !areaB) return null;
 
   const ratio = occupancyData[corridor.id] || 0;
+  const hazard = edgeMetric?.hazard || 0;
 
   // Determine color and thickness
   let strokeColor, strokeWidth, glowColor;
   if (mode === 'view') {
-    if (isBlocked) {
+    if (isBlocked || edgeMetric?.blocked || hazard >= 100) {
       strokeColor = '#64748b'; glowColor = 'transparent'; strokeWidth = 6;
+    } else if (hazard > 0) {
+      strokeColor = '#f97316'; glowColor = 'rgba(249,115,22,0.45)'; strokeWidth = 8;
     } else if (ratio >= 0.8) {
       strokeColor = '#ef4444'; glowColor = 'rgba(239,68,68,0.4)'; strokeWidth = 8 + ratio * 6;
     } else if (ratio >= 0.5) {
@@ -349,7 +352,7 @@ export default function MapCanvas({
   corridors, crossFloorCorridors, allAreas,
   selectedItem, onSelectItem,
   onAddArea, onAddCorridor,
-  occupancyData, incidentData, devices, guidanceState, backgroundImage, onUpdateBackgroundImage
+  occupancyData, incidentData, edgeMetrics, devices, guidanceState, backgroundImage, onUpdateBackgroundImage
 }) {
   const [pendingStart, setPendingStart] = useState(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -518,6 +521,7 @@ export default function MapCanvas({
                 onSelect={() => onSelectItem({ type: 'corridor', data: corridor })}
                 mode={mode}
                 occupancyData={occupancyData}
+                edgeMetric={edgeMetrics?.[corridor.id]}
               />
             );
           })}

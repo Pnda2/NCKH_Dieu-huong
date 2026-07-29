@@ -306,6 +306,19 @@ function App() {
   };
 
   // ─── Derived state ────────────────────────────────
+  const handleAdjustHazard = (edgeId, hazard) => {
+    fetch(SERVER_URL + '/api/hazard/adjust', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ edge_id: edgeId, hazard: Math.max(0, Number(hazard) || 0) }),
+    })
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error || 'Khong the cap nhat nguy co');
+      })
+      .catch(err => alert(err.message));
+  };
+
   const currentFloorAreas = areas.filter(a => (a.floor || 1) === activeFloor);
   const currentFloorAreaIds = new Set(currentFloorAreas.map(a => a.id));
 
@@ -509,6 +522,7 @@ function App() {
               onAddCorridor={handleAddCorridor}
               occupancyData={{ ...simulationState.edgeOccupancy, ...occupancyData }}
               incidentData={incidentData}
+              edgeMetrics={simulationState.edgeMetrics || {}}
               devices={devices}
               guidanceState={guidanceState}
               backgroundImage={normalizedBgImage}
@@ -625,6 +639,12 @@ function App() {
                   <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Hành lang còn tải</div><div className="text-yellow-400 font-bold">{simulationState.occupiedCorridors || 0}</div></div>
                   <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Hành lang mắc kẹt</div><div className="text-red-400 font-bold">{simulationState.trappedCorridors?.length || 0}</div></div>
                 </div>
+                <div className="grid grid-cols-2 gap-2 text-xs mt-2">
+                  <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Người ước tính</div><div className="text-white font-bold">{simulationState.estimatedPeople ?? '–'}</div></div>
+                  <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Lối thoát khả dụng</div><div className="text-emerald-400 font-bold">{simulationState.availableExits ?? '–'}</div></div>
+                  <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Khu vực nguy hiểm</div><div className="text-orange-400 font-bold">{simulationState.hazardousCorridors ?? 0}</div></div>
+                  <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Thuật toán</div><div className="text-blue-300 font-bold">{simulationState.routingAlgorithm || 'D* Lite'}</div></div>
+                </div>
                 {devices.length > 0 && (
                   <div className="mt-2 flex items-center justify-between text-xs bg-slate-800/60 rounded p-2">
                     <span className="text-slate-400">Thiết bị điều hướng</span>
@@ -719,6 +739,16 @@ function App() {
                             </div>
                           );
                         })()}
+                        <div className="grid grid-cols-2 gap-2 mb-3">
+                          <div className="bg-slate-800/60 rounded p-2">
+                            <div className="text-slate-500 text-xs">Người / sức chứa</div>
+                            <div className="text-white font-bold">{simulationState.edgeMetrics?.[selectedItem.data.id]?.currentPeople ?? '–'} / {simulationState.edgeMetrics?.[selectedItem.data.id]?.capacityPeople ?? '–'}</div>
+                          </div>
+                          <div className="bg-slate-800/60 rounded p-2">
+                            <div className="text-slate-500 text-xs">Trọng số D* Lite</div>
+                            <div className="text-blue-300 font-bold">{simulationState.edgeMetrics?.[selectedItem.data.id]?.weight ?? 'Bị chặn'}</div>
+                          </div>
+                        </div>
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-slate-300 text-xs font-bold uppercase">Độ lấp đầy k</span>
                           <span className="text-2xl text-white font-bold">
@@ -744,6 +774,19 @@ function App() {
                           >+ Tăng</button>
                         </div>
                         {simulationState.status !== 'running' && <p className="text-xs text-slate-500 mt-2">Chỉ điều chỉnh được khi mô phỏng đang chạy.</p>}
+                        <div className="mt-3 pt-3 border-t border-slate-600">
+                          <div className="flex justify-between text-xs mb-2">
+                            <span className="text-slate-300 font-bold">Nguy cơ H(e)</span>
+                            <span className="text-orange-300">{simulationState.edgeMetrics?.[selectedItem.data.id]?.hazard ?? 0}</span>
+                          </div>
+                          <input
+                            type="range" min="0" max="100" step="1"
+                            value={simulationState.edgeMetrics?.[selectedItem.data.id]?.hazard ?? 0}
+                            onChange={event => handleAdjustHazard(selectedItem.data.id, event.target.value)}
+                            className="w-full accent-orange-500"
+                          />
+                          <p className="text-xs text-slate-500 mt-1">100 là ngưỡng chặn hành lang.</p>
+                        </div>
                       </div>
                     )}
                      

@@ -6,14 +6,16 @@ export default function CorridorEdgeForm({ corridor, areas, onChange, onDelete }
   const [name, setName] = useState(corridor.name || '');
   const [length, setLength] = useState(corridor.length || 10);
   const [widthMeters, setWidthMeters] = useState(corridor.widthMeters || 1.2);
+  const [capacityPeople, setCapacityPeople] = useState(corridor.capacityPeople ?? Math.round((corridor.length || 10) * (corridor.widthMeters || 1.2) * 2));
   const [initialOccupancy, setInitialOccupancy] = useState(corridor.initialOccupancy ?? 0.5);
 
   useEffect(() => {
     setName(corridor.name || '');
     setLength(corridor.length || 10);
     setWidthMeters(corridor.widthMeters || 1.2);
+    setCapacityPeople(corridor.capacityPeople ?? Math.round((corridor.length || 10) * (corridor.widthMeters || 1.2) * 2));
     setInitialOccupancy(corridor.initialOccupancy ?? 0.5);
-  }, [corridor.id, corridor.name, corridor.length, corridor.widthMeters, corridor.initialOccupancy]);
+  }, [corridor.id, corridor.name, corridor.length, corridor.widthMeters, corridor.capacityPeople, corridor.initialOccupancy]);
 
   const areaA = areas.find(a => a.id === corridor.areaA_id);
   const areaB = areas.find(a => a.id === corridor.areaB_id);
@@ -39,6 +41,12 @@ export default function CorridorEdgeForm({ corridor, areas, onChange, onDelete }
     const value = Math.max(0.1, Number(e.target.value) || 0.1);
     setWidthMeters(value);
     onChange({ ...corridor, widthMeters: value, widthEstimated: false });
+  };
+
+  const handleCapacityChange = (e) => {
+    const value = Math.max(0, Number(e.target.value) || 0);
+    setCapacityPeople(value);
+    onChange({ ...corridor, capacityPeople: value });
   };
 
   return (
@@ -135,6 +143,18 @@ export default function CorridorEdgeForm({ corridor, areas, onChange, onDelete }
 
       {/* t0 derived info */}
       {/* t0 derived info */}
+      <div>
+        <label className="block text-slate-400 text-xs mb-1.5 font-medium">Sức chứa tối đa Cmax (người)</label>
+        <input
+          type="number"
+          min="1"
+          value={capacityPeople}
+          onChange={handleCapacityChange}
+          className="w-full bg-slate-600 text-white rounded-lg px-3 py-2 text-sm border border-slate-500 focus:border-blue-500 focus:outline-none"
+        />
+        <p className="text-xs text-slate-500 mt-1">Cmax ≤ 0 khiến hành lang không hợp lệ và bị loại khỏi D* Lite.</p>
+      </div>
+
       <div>
         <label className="block text-slate-400 text-xs mb-1.5 font-medium">Độ lấp đầy hành lang ban đầu k(e) (%)</label>
         <input

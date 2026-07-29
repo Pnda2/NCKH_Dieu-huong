@@ -19,6 +19,7 @@ venv/
 
 # Logs and editor/OS metadata
 *.log
+logs/
 .DS_Store
 Thumbs.db
 .idea/

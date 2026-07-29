@@ -9,7 +9,7 @@ const net = require("net");
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "5mb" }));
 
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -21,16 +21,27 @@ const io = new Server(server, {
 
 const MAP_FILE = path.join(__dirname, "map_data.json");
 const DEFAULT_CORRIDOR_WIDTH_METERS = 1.2;
+const DEFAULT_PEOPLE_PER_SQM = Number(process.env.WIEVAC_PEOPLE_PER_SQM || 2);
+const HTTP_PORT = Number(process.env.WIEVAC_HTTP_PORT || 3001);
+const MQTT_PORT = Number(process.env.WIEVAC_MQTT_PORT || 1883);
 
 function normalizeMapData(mapData) {
   const edges = Array.isArray(mapData?.edges)
     ? mapData.edges.map((edge) => {
         const width = Number(edge.widthMeters);
         const hasValidWidth = Number.isFinite(width) && width > 0;
+        const length = Math.max(0, Number(edge.length) || 0);
+        const explicitCapacity = Number(edge.capacityPeople);
+        const capacityPeople = Number.isFinite(explicitCapacity)
+          ? explicitCapacity
+          : length * (hasValidWidth ? width : DEFAULT_CORRIDOR_WIDTH_METERS) * DEFAULT_PEOPLE_PER_SQM;
+        const hazard = Math.max(0, Number(edge.hazard) || 0);
         return {
           ...edge,
           widthMeters: hasValidWidth ? width : DEFAULT_CORRIDOR_WIDTH_METERS,
           widthEstimated: hasValidWidth ? Boolean(edge.widthEstimated) : true,
+          capacityPeople,
+          hazard,
         };
       })
     : [];
@@ -80,8 +91,8 @@ async function startServer() {
       aedes.publish({
         topic: "building/config",
         payload: JSON.stringify(mapData),
-        qos: 0,
-        retain: false,
+        qos: 1,
+        retain: true,
       });
 
       res.json({ success: true });
@@ -174,6 +185,21 @@ async function startServer() {
     res.json({ success: true, message: "Occupancy adjustment sent to Pi 5" });
   });
 
+  app.post("/api/hazard/adjust", (req, res) => {
+    const { edge_id, hazard } = req.body;
+    const numericHazard = Number(hazard);
+    if (!edge_id || !Number.isFinite(numericHazard) || numericHazard < 0) {
+      return res.status(400).json({ error: "edge_id and a non-negative hazard are required" });
+    }
+    aedes.publish({
+      topic: "building/hazard/adjust",
+      payload: JSON.stringify({ edge_id, hazard: numericHazard }),
+      qos: 1,
+      retain: false,
+    });
+    res.json({ success: true, message: "Hazard adjustment sent to Pi 5" });
+  });
+
   // Incident APIs
   app.post("/api/incident", (req, res) => {
     const { type, target_id } = req.body; // type: 'edge' | 'exit'
@@ -205,8 +231,6 @@ async function startServer() {
 
   // Setup MQTT Broker (Aedes) on port 1883
   const mqttServer = net.createServer(aedes.handle);
-  const MQTT_PORT = 1883;
-
   mqttServer.listen(MQTT_PORT, () => {
     console.log(`MQTT Broker is running on port ${MQTT_PORT}`);
   });
@@ -287,9 +311,8 @@ async function startServer() {
   });
 
   // Start Express + Socket.io Server
-  const PORT = 3001;
-  server.listen(PORT, () => {
-    console.log(`Web/API Server running on port ${PORT}`);
+  server.listen(HTTP_PORT, () => {
+    console.log("Web/API Server running on port", HTTP_PORT);
   });
 }
 

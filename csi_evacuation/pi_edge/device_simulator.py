@@ -12,8 +12,8 @@ import time
 import paho.mqtt.client as mqtt
 
 
-MQTT_BROKER = os.getenv("MQTT_BROKER", "127.0.0.1")
-MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
+MQTT_BROKER = os.getenv("WIEVAC_MQTT_HOST", os.getenv("MQTT_BROKER", "127.0.0.1"))
+MQTT_PORT = int(os.getenv("WIEVAC_MQTT_PORT", os.getenv("MQTT_PORT", "1883")))
 ACK_DELAY_SECONDS = float(os.getenv("SIMULATOR_ACK_DELAY", "0.15"))
 DROP_ACK_FOR = {
     value.strip()

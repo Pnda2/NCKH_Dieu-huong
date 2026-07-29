@@ -1,14 +1,15 @@
-import paho.mqtt.client as mqtt
-import time
-import sys
+"""Protocol-level smoke tests; broker connectivity is exercised by start_all."""
 
-def on_connect(c, u, f, r):
-    print("Connected v1!", r)
-    sys.stdout.flush()
+import unittest
 
-c = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1)
-c.on_connect = on_connect
-c.connect("127.0.0.1", 1883, 60)
-c.loop_start()
+from guidance_controller import GuidanceController
 
-time.sleep(2)
+
+class GuidanceProtocolTests(unittest.TestCase):
+    def test_speaker_command_mapping(self):
+        self.assertEqual(GuidanceController._speaker_command("LEFT"), "EVACUATE_LEFT")
+        self.assertEqual(GuidanceController._speaker_command("NO_SAFE_ROUTE"), "SHELTER_IN_PLACE")
+
+
+if __name__ == "__main__":
+    unittest.main()

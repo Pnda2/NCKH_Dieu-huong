@@ -22,6 +22,8 @@ class GuidanceController:
         self.last_acks = {}
         self.offline_devices = set()
         self.latest_state = {"decisions": {}, "devices": []}
+        self._last_state_signature = None
+        self._last_state_published_at = 0.0
 
     def configure(self, map_config):
         self.devices = list(map_config.get("devices", []))
@@ -245,6 +247,7 @@ class GuidanceController:
         force=False,
     ):
         now = time.time()
+        previous_decisions = self.latest_state.get("decisions", {})
         decisions = {}
         for area_id in self.area_map:
             if area_id in exits:
@@ -301,13 +304,44 @@ class GuidanceController:
                     "routes": [],
                 }
 
+        route_events = []
+        for area_id, decision in decisions.items():
+            previous_edge = previous_decisions.get(area_id, {}).get("next_edge")
+            current_edge = decision.get("next_edge")
+            if previous_edge != current_edge:
+                area_name = self.area_map.get(area_id, {}).get("name", area_id)
+                if current_edge:
+                    edge_name = self.edge_map.get(current_edge, {}).get("name", current_edge)
+                    route_events.append({
+                        "type": "routing",
+                        "message": f"D* Lite đổi tuyến tại {area_name}: đi qua {edge_name}.",
+                        "time": time.strftime("%H:%M:%S"),
+                    })
+                elif not decision.get("at_exit"):
+                    route_events.append({
+                        "type": "alert",
+                        "message": f"Không còn đường thoát tại {area_name}.",
+                        "time": time.strftime("%H:%M:%S"),
+                    })
+
         device_states = []
+        device_events = []
         for device in self.devices:
             device_id = device.get("id")
             decision = decisions.get(device.get("area_id"))
+            previous_signature = self.last_commands.get(device_id, {}).get("signature")
             command_payload = self._publish_command(
                 client, device, decision, now, force=force
             )
+            current_signature = self.last_commands.get(device_id, {}).get("signature")
+            if command_payload and previous_signature != current_signature:
+                target_edge = command_payload.get("target_edge")
+                destination = self.edge_map.get(target_edge, {}).get("name", target_edge) if target_edge else "lối thoát / vùng an toàn"
+                device_events.append({
+                    "type": "guidance",
+                    "message": f"{device.get('name', device_id)} ({device.get('type', 'sign')}): {command_payload.get('command')} → {destination}",
+                    "time": time.strftime("%H:%M:%S"),
+                })
             device_states.append(
                 {
                     "id": device_id,
@@ -325,12 +359,25 @@ class GuidanceController:
             "decisions": decisions,
             "devices": device_states,
         }
-        client.publish(
-            "building/guidance/state",
-            json.dumps(self.latest_state, ensure_ascii=False),
-            qos=1,
-            retain=True,
+        state_signature = (
+            tuple(sorted((area_id, item.get("next_edge"), item.get("distance")) for area_id, item in decisions.items())),
+            tuple((item["id"], item["status"], (item.get("last_command") or {}).get("sequence")) for item in device_states),
         )
+        if state_signature != self._last_state_signature or now - self._last_state_published_at >= 2.0:
+            client.publish(
+                "building/guidance/state",
+                json.dumps(self.latest_state, ensure_ascii=False),
+                qos=1,
+                retain=True,
+            )
+            self._last_state_signature = state_signature
+            self._last_state_published_at = now
+        if route_events or device_events:
+            client.publish(
+                "building/log",
+                json.dumps({"events": route_events + device_events}, ensure_ascii=False),
+                qos=1,
+            )
         return self.latest_state
 
     def stop_all(self, client):

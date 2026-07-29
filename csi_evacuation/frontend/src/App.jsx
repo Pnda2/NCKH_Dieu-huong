@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import MapCanvas from './components/MapCanvas';
 import AreaForm from './components/AreaForm';
@@ -38,6 +38,7 @@ function App() {
     averageOccupancy: 0, occupiedCorridors: 0, edgeOccupancy: {},
   });
   const [densityStep, setDensityStep] = useState(5);
+  const hazardRequestRef = useRef(null);
   const [guidanceState, setGuidanceState] = useState({ decisions: {}, devices: [] });
 
   const [floors, setFloors] = useState([1]);
@@ -307,16 +308,19 @@ function App() {
 
   // ─── Derived state ────────────────────────────────
   const handleAdjustHazard = (edgeId, hazard) => {
-    fetch(SERVER_URL + '/api/hazard/adjust', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ edge_id: edgeId, hazard: Math.max(0, Number(hazard) || 0) }),
-    })
-      .then(async res => {
-        const data = await res.json();
-        if (!res.ok || data.error) throw new Error(data.error || 'Khong the cap nhat nguy co');
+    if (hazardRequestRef.current) clearTimeout(hazardRequestRef.current);
+    hazardRequestRef.current = setTimeout(() => {
+      fetch(SERVER_URL + '/api/hazard/adjust', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ edge_id: edgeId, hazard: Math.max(0, Number(hazard) || 0) }),
       })
-      .catch(err => alert(err.message));
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok || data.error) throw new Error(data.error || 'Khong the cap nhat nguy co');
+        })
+        .catch(err => alert(err.message));
+    }, 250);
   };
 
   const currentFloorAreas = areas.filter(a => (a.floor || 1) === activeFloor);
@@ -640,10 +644,8 @@ function App() {
                   <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Hành lang mắc kẹt</div><div className="text-red-400 font-bold">{simulationState.trappedCorridors?.length || 0}</div></div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs mt-2">
-                  <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Người ước tính</div><div className="text-white font-bold">{simulationState.estimatedPeople ?? '–'}</div></div>
                   <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Lối thoát khả dụng</div><div className="text-emerald-400 font-bold">{simulationState.availableExits ?? '–'}</div></div>
                   <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Khu vực nguy hiểm</div><div className="text-orange-400 font-bold">{simulationState.hazardousCorridors ?? 0}</div></div>
-                  <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Thuật toán</div><div className="text-blue-300 font-bold">{simulationState.routingAlgorithm || 'D* Lite'}</div></div>
                 </div>
                 {devices.length > 0 && (
                   <div className="mt-2 flex items-center justify-between text-xs bg-slate-800/60 rounded p-2">

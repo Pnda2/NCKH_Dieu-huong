@@ -1,0 +1,297 @@
+{
+  "areas": [
+    {
+      "id": "a_1784607131626",
+      "name": "Khu v\u1ef1c 8",
+      "type": "room",
+      "x": 573,
+      "y": -21.587501525878906,
+      "floor": 3
+    },
+    {
+      "id": "a_1784607132610",
+      "name": "Khu v\u1ef1c 9",
+      "type": "room",
+      "x": 850,
+      "y": -21.587501525878906,
+      "floor": 3
+    },
+    {
+      "id": "a_1784607133214",
+      "name": "Khu v\u1ef1c 10",
+      "type": "room",
+      "x": 690,
+      "y": 109.4124984741211,
+      "floor": 3
+    },
+    {
+      "id": "a_1784607133995",
+      "name": "Khu v\u1ef1c 11",
+      "type": "room",
+      "x": 855,
+      "y": 210.4124984741211,
+      "floor": 3
+    },
+    {
+      "id": "a_1784607135092",
+      "name": "Khu v\u1ef1c 12",
+      "type": "room",
+      "x": 991,
+      "y": 106.4124984741211,
+      "floor": 3
+    },
+    {
+      "id": "a_1784607135861",
+      "name": "Khu v\u1ef1c 13",
+      "type": "stairs",
+      "x": 1124,
+      "y": -32.587501525878906,
+      "floor": 3
+    },
+    {
+      "id": "a_1784256604234",
+      "name": "Khu v\u1ef1c 4",
+      "type": "room",
+      "x": 513,
+      "y": 135.4124984741211,
+      "floor": 2
+    },
+    {
+      "id": "a_1784256605158",
+      "name": "Khu v\u1ef1c 5",
+      "type": "room",
+      "x": 767,
+      "y": 137.4124984741211,
+      "floor": 2
+    },
+    {
+      "id": "a_1784256606115",
+      "name": "Khu v\u1ef1c 6",
+      "type": "stairs",
+      "x": 768,
+      "y": 283.4124984741211,
+      "floor": 2
+    },
+    {
+      "id": "a_1784607138553",
+      "name": "Khu v\u1ef1c 14",
+      "type": "room",
+      "x": 982,
+      "y": 132.4124984741211,
+      "floor": 2
+    },
+    {
+      "id": "a_1784607142340",
+      "name": "Khu v\u1ef1c 15",
+      "type": "room",
+      "x": 765,
+      "y": -11.587501525878906,
+      "floor": 2
+    },
+    {
+      "id": "a_1784607143651",
+      "name": "Khu v\u1ef1c 16",
+      "type": "stairs",
+      "x": 1084,
+      "y": -20.587501525878906,
+      "floor": 2
+    },
+    {
+      "id": "a_1784607145219",
+      "name": "Khu v\u1ef1c 17",
+      "type": "room",
+      "x": 512,
+      "y": -16.587501525878906,
+      "floor": 2
+    },
+    {
+      "id": "a_1784256585920",
+      "name": "Khu v\u1ef1c 1",
+      "type": "room",
+      "x": 572,
+      "y": 133.4124984741211,
+      "floor": 1
+    },
+    {
+      "id": "a_1784256587602",
+      "name": "Khu v\u1ef1c 2",
+      "type": "room",
+      "x": 840,
+      "y": 131.4124984741211,
+      "floor": 1
+    },
+    {
+      "id": "a_1784256588572",
+      "name": "Khu v\u1ef1c 3",
+      "type": "stairs",
+      "x": 842,
+      "y": 291.4124984741211,
+      "floor": 1
+    },
+    {
+      "id": "a_1784594948992",
+      "name": "Khu v\u1ef1c 7",
+      "type": "exit",
+      "x": 571.659936203223,
+      "y": 294.31340500414314,
+      "floor": 1
+    },
+    {
+      "id": "a_1784607239695",
+      "name": "Khu v\u1ef1c 18",
+      "type": "exit",
+      "x": 837,
+      "y": -48.587501525878906,
+      "floor": 1
+    },
+    {
+      "id": "a_1784607246504",
+      "name": "Khu v\u1ef1c 19",
+      "type": "room",
+      "x": 1098,
+      "y": 131.4124984741211,
+      "floor": 1
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_1784256591910",
+      "name": "Khu v\u1ef1c 2 \u2013 Khu v\u1ef1c 1",
+      "length": 10,
+      "areaA_id": "a_1784256587602",
+      "areaB_id": "a_1784256585920"
+    },
+    {
+      "id": "e_1784256592830",
+      "name": "Khu v\u1ef1c 2 \u2013 Khu v\u1ef1c 3",
+      "length": 10,
+      "areaA_id": "a_1784256587602",
+      "areaB_id": "a_1784256588572"
+    },
+    {
+      "id": "e_1784256610387",
+      "name": "Khu v\u1ef1c 4 \u2013 Khu v\u1ef1c 5",
+      "length": 10,
+      "areaA_id": "a_1784256604234",
+      "areaB_id": "a_1784256605158"
+    },
+    {
+      "id": "e_1784256611521",
+      "name": "Khu v\u1ef1c 5 \u2013 Khu v\u1ef1c 6",
+      "length": 10,
+      "areaA_id": "a_1784256605158",
+      "areaB_id": "a_1784256606115"
+    },
+    {
+      "id": "e_1784256616049_454",
+      "name": "Khu v\u1ef1c 6 \u2013 Khu v\u1ef1c 3",
+      "length": 10,
+      "areaA_id": "a_1784256606115",
+      "areaB_id": "a_1784256588572"
+    },
+    {
+      "id": "e_1784594967567",
+      "name": "Khu v\u1ef1c 1 \u2013 Khu v\u1ef1c 7",
+      "length": 10,
+      "areaA_id": "a_1784256585920",
+      "areaB_id": "a_1784594948992"
+    },
+    {
+      "id": "e_1784607173514",
+      "name": "Khu v\u1ef1c 17 \u2013 Khu v\u1ef1c 4",
+      "length": 10,
+      "areaA_id": "a_1784607145219",
+      "areaB_id": "a_1784256604234"
+    },
+    {
+      "id": "e_1784607174786",
+      "name": "Khu v\u1ef1c 15 \u2013 Khu v\u1ef1c 14",
+      "length": 10,
+      "areaA_id": "a_1784607142340",
+      "areaB_id": "a_1784607138553"
+    },
+    {
+      "id": "e_1784607175946",
+      "name": "Khu v\u1ef1c 14 \u2013 Khu v\u1ef1c 5",
+      "length": 10,
+      "areaA_id": "a_1784607138553",
+      "areaB_id": "a_1784256605158"
+    },
+    {
+      "id": "e_1784607177209",
+      "name": "Khu v\u1ef1c 14 \u2013 Khu v\u1ef1c 16",
+      "length": 10,
+      "areaA_id": "a_1784607138553",
+      "areaB_id": "a_1784607143651"
+    },
+    {
+      "id": "e_1784607195669",
+      "name": "Khu v\u1ef1c 8 \u2013 Khu v\u1ef1c 10",
+      "length": 10,
+      "areaA_id": "a_1784607131626",
+      "areaB_id": "a_1784607133214"
+    },
+    {
+      "id": "e_1784607196871",
+      "name": "Khu v\u1ef1c 9 \u2013 Khu v\u1ef1c 10",
+      "length": 10,
+      "areaA_id": "a_1784607132610",
+      "areaB_id": "a_1784607133214"
+    },
+    {
+      "id": "e_1784607198019",
+      "name": "Khu v\u1ef1c 10 \u2013 Khu v\u1ef1c 11",
+      "length": 10,
+      "areaA_id": "a_1784607133214",
+      "areaB_id": "a_1784607133995"
+    },
+    {
+      "id": "e_1784607198814",
+      "name": "Khu v\u1ef1c 11 \u2013 Khu v\u1ef1c 12",
+      "length": 10,
+      "areaA_id": "a_1784607133995",
+      "areaB_id": "a_1784607135092"
+    },
+    {
+      "id": "e_1784607199732",
+      "name": "Khu v\u1ef1c 12 \u2013 Khu v\u1ef1c 13",
+      "length": 10,
+      "areaA_id": "a_1784607135092",
+      "areaB_id": "a_1784607135861"
+    },
+    {
+      "id": "e_1784607201527",
+      "name": "Khu v\u1ef1c 9 \u2013 Khu v\u1ef1c 12",
+      "length": 10,
+      "areaA_id": "a_1784607132610",
+      "areaB_id": "a_1784607135092"
+    },
+    {
+      "id": "e_1784607227098_248",
+      "name": "Khu v\u1ef1c 16 \u2013 Khu v\u1ef1c 13",
+      "length": 10,
+      "areaA_id": "a_1784607143651",
+      "areaB_id": "a_1784607135861"
+    },
+    {
+      "id": "e_1784607251904",
+      "name": "Khu v\u1ef1c 1 \u2013 Khu v\u1ef1c 18",
+      "length": 10,
+      "areaA_id": "a_1784256585920",
+      "areaB_id": "a_1784607239695"
+    },
+    {
+      "id": "e_1784607253776",
+      "name": "Khu v\u1ef1c 2 \u2013 Khu v\u1ef1c 19",
+      "length": 10,
+      "areaA_id": "a_1784256587602",
+      "areaB_id": "a_1784607246504"
+    }
+  ],
+  "floorImages": {},
+  "floors": [
+    1,
+    2,
+    3
+  ]
+}

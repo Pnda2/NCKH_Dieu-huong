@@ -14,17 +14,17 @@ Express + Socket.IO → Dashboard / bảng hiệu / loa
 
 ## Kiến trúc và cổng
 
-| Thành phần | Entry point | Cổng mặc định |
-|---|---|---:|
-| Dashboard React/Vite | `csi_evacuation/frontend` | 5173 |
-| API + Socket.IO + MQTT broker | `csi_evacuation/backend/server.js` | 3001, 1883 |
-| Pi edge, D* Lite, CSI bridge | `csi_evacuation/pi_edge/edge_core.py` | MQTT client |
-| Thiết bị giả lập | `csi_evacuation/pi_edge/device_simulator.py` | MQTT client |
+| Thành phần                    | Entry point                                  | Cổng mặc định |
+| ----------------------------- | -------------------------------------------- | ------------: |
+| Dashboard React/Vite          | `csi_evacuation/frontend`                    |          5173 |
+| API + Socket.IO + MQTT broker | `csi_evacuation/backend/server.js`           |    3001, 1883 |
+| Pi edge, D\* Lite, CSI bridge | `csi_evacuation/pi_edge/edge_core.py`        |   MQTT client |
+| Thiết bị giả lập              | `csi_evacuation/pi_edge/device_simulator.py` |   MQTT client |
 
 Không có database ngoài: cấu hình bản đồ được lưu trong
 `backend/map_data.json` và đồng bộ qua topic `building/config`.
 
-## D* Lite và trọng số
+## D\* Lite và trọng số
 
 Mỗi cạnh dùng đúng công thức:
 
@@ -36,7 +36,7 @@ Mỗi cạnh dùng đúng công thức:
 - `H`: nguy cơ không âm. Từ `WIEVAC_HAZARD_BLOCK_THRESHOLD`, cạnh bị chặn.
 - `gamma >= 0`, `delta >= 1` là cấu hình trong `.env`.
 
-`dynamic_routing.py` chứa D* Lite thật với `g`, `rhs`, hàng đợi khóa
+`dynamic_routing.py` chứa D\* Lite thật với `g`, `rhs`, hàng đợi khóa
 hai thành phần, `calculate_key`, `update_vertex`, `compute_shortest_path`
 và cập nhật các cạnh đổi chi phí. Mỗi điểm bắt đầu giữ lại planner riêng;
 khi CSI/nguy cơ đổi, chỉ các đỉnh chịu ảnh hưởng được repair. Heuristic bằng 0
@@ -86,14 +86,14 @@ thiết bị thật.
 Thiết bị CSI gửi MQTT QoS 1 vào `building/occupancy/input`:
 
 ```json
-{"values": {"edge_01": 0.42}}
+{ "values": { "edge_01": 0.42 } }
 ```
 
 `0` là trống và `1` là đầy. Giá trị âm được chuẩn hóa về 0; giá trị từ 1 trở
 lên làm cạnh quá tải, không thể đi qua. Điều chỉnh nguy cơ demo gửi:
 
 ```json
-{"edge_id": "edge_01", "hazard": 25}
+{ "edge_id": "edge_01", "hazard": 25 }
 ```
 
 vào `building/hazard/adjust`, hoặc dùng thanh **Nguy cơ H(e)** khi chọn hành
@@ -103,7 +103,8 @@ giả lập, không phải dữ liệu CSI production.
 ## Kiểm thử
 
 ```powershell
-.\.venv\Scripts\python.exe -m unittest -v csi_evacuation\pi_edge\test_dynamic_routing.py
+cd csi_evacuation\pi_edge
+..\..\.venv\Scripts\python.exe -m unittest -v test_dynamic_routing.py
 cd csi_evacuation\frontend
 npm.cmd run lint
 npm.cmd run build
@@ -112,7 +113,7 @@ node --check server.js
 ```
 
 Các test bao phủ cạnh trống, ví dụ kết quả `15.5`, tính đơn điệu, sức chứa
-không hợp lệ/quá tải, reroute do mật độ/nguy cơ, cập nhật tăng dần D* Lite,
+không hợp lệ/quá tải, reroute do mật độ/nguy cơ, cập nhật tăng dần D\* Lite,
 không còn đường thoát và đối chiếu đường đi tĩnh.
 
 ## Khắc phục lỗi

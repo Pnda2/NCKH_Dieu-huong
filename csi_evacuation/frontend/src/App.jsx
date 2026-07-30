@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { io } from 'socket.io-client';
 import MapCanvas from './components/MapCanvas';
 import AreaForm from './components/AreaForm';
@@ -342,6 +342,10 @@ function App() {
   const avgOccupancy = occupancyRatios.length > 0
     ? occupancyRatios.reduce((a, b) => a + b, 0) / occupancyRatios.length : 0;
   const criticalCount = occupancyRatios.filter(ratio => ratio >= 0.8).length;
+  const mapOccupancyData = useMemo(
+    () => ({ ...simulationState.edgeOccupancy, ...occupancyData }),
+    [simulationState.edgeOccupancy, occupancyData]
+  );
 
   const currentBgImage = floorImages[activeFloor];
   const normalizedBgImage = typeof currentBgImage === 'string' 
@@ -524,7 +528,7 @@ function App() {
               onSelectItem={setSelectedItem}
               onAddArea={handleAddArea}
               onAddCorridor={handleAddCorridor}
-              occupancyData={{ ...simulationState.edgeOccupancy, ...occupancyData }}
+              occupancyData={mapOccupancyData}
               incidentData={incidentData}
               edgeMetrics={simulationState.edgeMetrics || {}}
               devices={devices}

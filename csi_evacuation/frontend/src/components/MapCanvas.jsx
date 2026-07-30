@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Stage, Layer, Circle, Line, Arrow, Text, Image, Group, Rect } from 'react-konva';
 import useImage from 'use-image';
 
@@ -362,6 +362,9 @@ export default function MapCanvas({
 
   const containerRef = useRef();
   const stageRef = useRef();
+  // Konva moves the stage outside React while dragging. Keep that live position
+  // in a ref so incoming realtime updates cannot snap it back to an old state.
+  const stagePosRef = useRef({ x: 0, y: 0 });
 
   // Resize observer
   useEffect(() => {
@@ -397,11 +400,13 @@ export default function MapCanvas({
     let direction = e.evt.deltaY > 0 ? -1 : 1;
     const newScale = direction > 0 ? oldScale * scaleBy : oldScale / scaleBy;
 
-    setStageScale(newScale);
-    setStagePos({
+    const nextPos = {
       x: pointer.x - mousePointTo.x * newScale,
       y: pointer.y - mousePointTo.y * newScale,
-    });
+    };
+    stagePosRef.current = nextPos;
+    setStageScale(newScale);
+    setStagePos(nextPos);
   };
 
   const handleStageClick = (e) => {
@@ -410,8 +415,8 @@ export default function MapCanvas({
 
     if (mode === 'edit' && editTool === 'addArea') {
       const pointer = stageRef.current.getPointerPosition();
-      const x = (pointer.x - stagePos.x) / stageScale;
-      const y = (pointer.y - stagePos.y) / stageScale;
+      const x = (pointer.x - stagePosRef.current.x) / stageScale;
+      const y = (pointer.y - stagePosRef.current.y) / stageScale;
       onAddArea(x, y);
     } else if (mode === 'edit' && editTool === 'addCorridor') {
       setPendingStart(null);
@@ -425,8 +430,8 @@ export default function MapCanvas({
       const pointer = stageRef.current.getPointerPosition();
       if (pointer) {
         setMousePos({
-          x: (pointer.x - stagePos.x) / stageScale,
-          y: (pointer.y - stagePos.y) / stageScale
+          x: (pointer.x - stagePosRef.current.x) / stageScale,
+          y: (pointer.y - stagePosRef.current.y) / stageScale
         });
       }
     }
@@ -456,17 +461,21 @@ export default function MapCanvas({
     return labels;
   };
 
-  // Dynamic grid calculation
-  const gridStartX = Math.floor(-stagePos.x / stageScale / 40) - 1;
-  const gridStartY = Math.floor(-stagePos.y / stageScale / 40) - 1;
-  const gridEndX = gridStartX + Math.ceil(stageSize.width / stageScale / 40) + 2;
-  const gridEndY = gridStartY + Math.ceil(stageSize.height / stageScale / 40) + 2;
-  const gridDots = [];
-  for (let xi = gridStartX; xi < gridEndX; xi++) {
-    for (let yi = gridStartY; yi < gridEndY; yi++) {
-      gridDots.push(<Circle key={`${xi}-${yi}`} x={xi * 40 + 20} y={yi * 40 + 20} radius={1} fill="#cbd5e1" />);
+  // Rebuild the grid only when the committed viewport changes, not for each
+  // dashboard update from the simulator.
+  const gridDots = useMemo(() => {
+    const gridStartX = Math.floor(-stagePos.x / stageScale / 40) - 1;
+    const gridStartY = Math.floor(-stagePos.y / stageScale / 40) - 1;
+    const gridEndX = gridStartX + Math.ceil(stageSize.width / stageScale / 40) + 2;
+    const gridEndY = gridStartY + Math.ceil(stageSize.height / stageScale / 40) + 2;
+    const dots = [];
+    for (let xi = gridStartX; xi < gridEndX; xi++) {
+      for (let yi = gridStartY; yi < gridEndY; yi++) {
+        dots.push(<Circle key={xi + '-' + yi} x={xi * 40 + 20} y={yi * 40 + 20} radius={1} fill="#cbd5e1" />);
+      }
     }
-  }
+    return dots;
+  }, [stagePos.x, stagePos.y, stageScale, stageSize.width, stageSize.height]);
 
   // Cursor
   let cursor = 'default';
@@ -480,14 +489,21 @@ export default function MapCanvas({
         ref={stageRef}
         width={stageSize.width}
         height={stageSize.height}
-        x={stagePos.x}
-        y={stagePos.y}
+        x={stagePosRef.current.x}
+        y={stagePosRef.current.y}
         scaleX={stageScale}
         scaleY={stageScale}
         draggable={editTool === 'select' || mode === 'view'}
+        onDragMove={(e) => {
+          if (e.target === stageRef.current) {
+            stagePosRef.current = { x: e.target.x(), y: e.target.y() };
+          }
+        }}
         onDragEnd={(e) => {
           if (e.target === stageRef.current) {
-            setStagePos({ x: e.target.x(), y: e.target.y() });
+            const nextPos = { x: e.target.x(), y: e.target.y() };
+            stagePosRef.current = nextPos;
+            setStagePos(nextPos);
           }
         }}
         onWheel={handleWheel}

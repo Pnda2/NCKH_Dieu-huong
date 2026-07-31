@@ -5,7 +5,7 @@ import AreaForm from './components/AreaForm';
 import CorridorEdgeForm from './components/CorridorEdgeForm';
 import DeviceRegistryForm from './components/DeviceRegistryForm';
 
-const SERVER_URL = 'http://localhost:3001';
+const SERVER_URL = import.meta.env.VITE_WIEVAC_API_URL || 'http://localhost:3001';
 const DEFAULT_CORRIDOR_WIDTH_METERS = 1.2;
 
 const normalizeCorridor = (corridor) => {
@@ -148,6 +148,7 @@ function App() {
       widthMeters: DEFAULT_CORRIDOR_WIDTH_METERS,
       widthEstimated: true,
       initialOccupancy: 0.5,
+      flowCapacity: undefined,
       areaA_id,
       areaB_id,
     };
@@ -206,6 +207,7 @@ function App() {
         widthMeters: DEFAULT_CORRIDOR_WIDTH_METERS,
         widthEstimated: true,
         initialOccupancy: 0.5,
+        flowCapacity: undefined,
         areaA_id: areaId1,
         areaB_id: areaId2,
       };
@@ -643,11 +645,13 @@ function App() {
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Thời gian</div><div className="text-white font-bold">{formatDuration(simulationState.elapsedSeconds)}</div></div>
-                  <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Lấp đầy TB</div><div className="text-blue-400 font-bold">{Math.round((simulationState.averageOccupancy || 0) * 100)}%</div></div>
+                  <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">CSI k(e) TB</div><div className="text-blue-400 font-bold">{Math.round((simulationState.averageOccupancy || 0) * 100)}%</div></div>
                   <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Hành lang còn tải</div><div className="text-yellow-400 font-bold">{simulationState.occupiedCorridors || 0}</div></div>
                   <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Hành lang mắc kẹt</div><div className="text-red-400 font-bold">{simulationState.trappedCorridors?.length || 0}</div></div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs mt-2">
+                  <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Optimizer</div><div className="text-cyan-300 font-bold">{simulationState.optimizerStatus || 'fallback'}</div></div>
+                  <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Sai số bảo toàn</div><div className="text-emerald-300 font-bold">{Number(simulationState.conservationError || 0).toFixed(3)}</div></div>
                   <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Lối thoát khả dụng</div><div className="text-emerald-400 font-bold">{simulationState.availableExits ?? '–'}</div></div>
                   <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Khu vực nguy hiểm</div><div className="text-orange-400 font-bold">{simulationState.hazardousCorridors ?? 0}</div></div>
                 </div>
@@ -747,7 +751,7 @@ function App() {
                         })()}
                         <div className="grid grid-cols-2 gap-2 mb-3">
                           <div className="bg-slate-800/60 rounded p-2">
-                            <div className="text-slate-500 text-xs">Người / sức chứa</div>
+                            <div className="text-slate-500 text-xs">Tải ước lượng / sức chứa quy đổi</div>
                             <div className="text-white font-bold">{simulationState.edgeMetrics?.[selectedItem.data.id]?.currentPeople ?? '–'} / {simulationState.edgeMetrics?.[selectedItem.data.id]?.capacityPeople ?? '–'}</div>
                           </div>
                           <div className="bg-slate-800/60 rounded p-2">
@@ -755,12 +759,17 @@ function App() {
                             <div className="text-blue-300 font-bold">{simulationState.edgeMetrics?.[selectedItem.data.id]?.weight ?? 'Bị chặn'}</div>
                           </div>
                         </div>
+                        <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
+                          <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">k đo / EMA</div><div className="text-white font-bold">{Math.round((simulationState.edgeMetrics?.[selectedItem.data.id]?.measured_k ?? 0) * 100)}% / {Math.round((simulationState.edgeMetrics?.[selectedItem.data.id]?.filtered_k ?? 0) * 100)}%</div></div>
+                          <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Flow capacity</div><div className="text-cyan-300 font-bold">{simulationState.edgeMetrics?.[selectedItem.data.id]?.flowCapacity ?? '–'}</div></div>
+                        </div>
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-slate-300 text-xs font-bold uppercase">Độ lấp đầy k</span>
+                          <span className="text-slate-300 text-xs font-bold uppercase">CSI k(e) đã lọc</span>
                           <span className="text-2xl text-white font-bold">
                             {Math.round((occupancyData[selectedItem.data.id] ?? simulationState.edgeOccupancy?.[selectedItem.data.id] ?? selectedItem.data.initialOccupancy ?? 0) * 100)}%
                           </span>
                         </div>
+                        <p className="text-xs text-slate-500 mt-2">CSI chỉ ước lượng tỷ lệ lấp đầy; không đếm chính xác từng người.</p>
                         <div className="flex items-center gap-2">
                           <input
                             type="number" min="1" max="100" value={densityStep}

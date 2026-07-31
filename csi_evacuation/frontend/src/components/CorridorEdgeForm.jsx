@@ -7,6 +7,7 @@ export default function CorridorEdgeForm({ corridor, areas, onChange, onDelete }
   const [length, setLength] = useState(corridor.length || 10);
   const [widthMeters, setWidthMeters] = useState(corridor.widthMeters || 1.2);
   const [capacityPeople, setCapacityPeople] = useState(corridor.capacityPeople ?? Math.round((corridor.length || 10) * (corridor.widthMeters || 1.2) * 2));
+  const [flowCapacity, setFlowCapacity] = useState(corridor.flowCapacity ?? '');
   const [initialOccupancy, setInitialOccupancy] = useState(corridor.initialOccupancy ?? 0.5);
 
   useEffect(() => {
@@ -14,8 +15,9 @@ export default function CorridorEdgeForm({ corridor, areas, onChange, onDelete }
     setLength(corridor.length || 10);
     setWidthMeters(corridor.widthMeters || 1.2);
     setCapacityPeople(corridor.capacityPeople ?? Math.round((corridor.length || 10) * (corridor.widthMeters || 1.2) * 2));
+    setFlowCapacity(corridor.flowCapacity ?? '');
     setInitialOccupancy(corridor.initialOccupancy ?? 0.5);
-  }, [corridor.id, corridor.name, corridor.length, corridor.widthMeters, corridor.capacityPeople, corridor.initialOccupancy]);
+  }, [corridor.id, corridor.name, corridor.length, corridor.widthMeters, corridor.capacityPeople, corridor.flowCapacity, corridor.initialOccupancy]);
 
   const areaA = areas.find(a => a.id === corridor.areaA_id);
   const areaB = areas.find(a => a.id === corridor.areaB_id);
@@ -47,6 +49,11 @@ export default function CorridorEdgeForm({ corridor, areas, onChange, onDelete }
     const value = Math.max(0, Number(e.target.value) || 0);
     setCapacityPeople(value);
     onChange({ ...corridor, capacityPeople: value });
+  };
+  const handleFlowCapacityChange = (e) => {
+    const value = e.target.value === '' ? '' : Math.max(0.01, Number(e.target.value) || 0.01);
+    setFlowCapacity(value);
+    onChange({ ...corridor, flowCapacity: value === '' ? undefined : value });
   };
 
   return (
@@ -90,6 +97,13 @@ export default function CorridorEdgeForm({ corridor, areas, onChange, onDelete }
           className="w-full bg-slate-600 text-white rounded-lg px-3 py-2 text-sm border border-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
           placeholder="Nhập tên hành lang..."
         />
+      </div>
+
+      <div>
+        <label className="block text-slate-400 text-xs mb-1.5 font-medium">Khả năng thông hành (tải ước lượng/giây)</label>
+        <input type="number" min="0.01" step="0.1" value={flowCapacity} onChange={handleFlowCapacityChange}
+          placeholder="Tự ước lượng từ chiều rộng" className="w-full bg-slate-600 text-white rounded-lg px-3 py-2 text-sm border border-slate-500 focus:border-blue-500 focus:outline-none" />
+        <p className="text-xs text-slate-500 mt-1">Để trống để mô phỏng ước lượng từ chiều rộng; đây không phải số người đếm chính xác.</p>
       </div>
 
       {/* Length */}

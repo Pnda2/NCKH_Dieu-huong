@@ -23,6 +23,8 @@ class WeightParameters:
     delta: float = 2.0
     hazard_block_threshold: float = 100.0
     people_per_square_meter: float = 2.0
+    specific_flow_per_meter: float = 1.3
+    stair_flow_factor: float = 0.65
 
     def validated(self) -> "WeightParameters":
         return WeightParameters(
@@ -31,6 +33,8 @@ class WeightParameters:
             delta=max(1.0, float(self.delta)),
             hazard_block_threshold=max(0.0, float(self.hazard_block_threshold)),
             people_per_square_meter=max(0.1, float(self.people_per_square_meter)),
+            specific_flow_per_meter=max(0.01, float(self.specific_flow_per_meter)),
+            stair_flow_factor=max(0.05, min(1.0, float(self.stair_flow_factor))),
         )
 
 
@@ -49,6 +53,39 @@ def corridor_capacity(edge: dict, parameters: WeightParameters) -> float:
     except (TypeError, ValueError):
         return 0.0
     return length * width * parameters.people_per_square_meter
+
+
+def corridor_flow_capacity(edge: dict, areas: dict[str, dict], parameters: WeightParameters) -> float:
+    """Return continuous equivalent load/second, never confusing it with storage."""
+    explicit = edge.get("flowCapacity")
+    try:
+        flow = float(explicit) if explicit not in (None, "") else 0.0
+    except (TypeError, ValueError):
+        flow = 0.0
+    if flow > 0:
+        return flow
+    try:
+        width = max(0.1, float(edge.get("widthMeters", 1.2)))
+    except (TypeError, ValueError):
+        width = 1.2
+    left, right = areas.get(edge.get("areaA_id"), {}), areas.get(edge.get("areaB_id"), {})
+    is_stair = left.get("type") == "stairs" or right.get("type") == "stairs" or left.get("floor", 1) != right.get("floor", 1)
+    return width * parameters.specific_flow_per_meter * (parameters.stair_flow_factor if is_stair else 1.0)
+
+
+def occupancy_ratio(value: object) -> float:
+    """Read a raw ratio or the normalized CSI state without treating UNKNOWN as empty."""
+    if isinstance(value, dict):
+        if value.get("status") in {"UNKNOWN", "STALE"}:
+            return 1.0
+        value = value.get("filtered_k", value.get("measured_k", 1.0))
+    try:
+        return max(0.0, min(1.0, float(value)))
+    except (TypeError, ValueError):
+        return 1.0
+
+
+occupancy_ratio_fn = occupancy_ratio
 
 
 def dynamic_edge_cost(
@@ -269,9 +306,10 @@ class DynamicEvacuationRouter:
         for edge_id, edge in self.edges.items():
             capacity = corridor_capacity(edge, self.parameters)
             try:
-                ratio = max(0.0, float(occupancy_ratio.get(edge_id, 0.0)))
+                ratio = occupancy_ratio.get(edge_id, 1.0)
+                ratio = occupancy_ratio_fn(ratio)
             except (TypeError, ValueError):
-                ratio = 0.0
+                ratio = 1.0
             cost = dynamic_edge_cost(
                 edge,
                 current_people=ratio * max(capacity, 0.0),
@@ -300,11 +338,18 @@ class DynamicEvacuationRouter:
         planner = self._planner(source)
         path, cost = planner.extract_path()
         edge_ids = [item for item in path if item in self.edges]
+        candidates = []
+        for target, edge_id in planner.successors.get(source, []):
+            total_cost = self._cost_of(edge_id) + planner.g.get(target, INF)
+            if target != self.VIRTUAL_EXIT and math.isfinite(total_cost):
+                candidates.append((target, edge_id, total_cost))
+        candidates.sort(key=lambda item: (item[2], item[0], item[1]))
         return {
             "path": path,
             "edge_ids": edge_ids,
             "cost": cost,
             "next_edge": edge_ids[0] if edge_ids else None,
+            "route_candidates": candidates[:2],
             "reachable": math.isfinite(cost),
             "planner_initializations": planner.initialization_count,
             "planner_incremental_updates": planner.incremental_update_count,
@@ -318,11 +363,19 @@ class DynamicEvacuationRouter:
         result: dict[str, dict] = {}
         for edge_id, edge in self.edges.items():
             capacity = corridor_capacity(edge, self.parameters)
-            ratio = max(0.0, min(1.0, float(occupancy_ratio.get(edge_id, 0.0))))
+            state = occupancy_ratio.get(edge_id, {})
+            ratio = occupancy_ratio_fn(state)
             people = ratio * max(capacity, 0.0)
             result[edge_id] = {
-                "currentPeople": round(people, 2),
+                "measured_k": state.get("measured_k") if isinstance(state, dict) else ratio,
+                "filtered_k": state.get("filtered_k") if isinstance(state, dict) else ratio,
+                "sensorStatus": state.get("status", "OK") if isinstance(state, dict) else "OK",
+                "confidence": state.get("confidence", 1.0) if isinstance(state, dict) else 1.0,
+                "lastUpdated": state.get("last_updated", 0) if isinstance(state, dict) else 0,
+                "estimated_load": round(people, 3),
+                "currentPeople": round(people, 3),
                 "capacityPeople": round(capacity, 2),
+                "flowCapacity": round(corridor_flow_capacity(edge, self.areas, self.parameters), 3),
                 "occupancyRatio": round(ratio, 3),
                 "hazard": round(max(0.0, float(hazards.get(edge_id, edge.get("hazard", 0.0)))), 2),
                 "weight": None if not math.isfinite(self.costs.get(edge_id, INF)) else round(self.costs[edge_id], 3),

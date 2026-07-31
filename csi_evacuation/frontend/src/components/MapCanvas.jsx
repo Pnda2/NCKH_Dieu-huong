@@ -37,9 +37,13 @@ function BackgroundImage({ data, mode, onUpdate }) {
   );
 }
 
-function AreaNode({ area, isSelected, isPendingStart, mode, editTool, isBlocked, onSelect, onChange, onStartCorridor, crossFloorLabels }) {
+function AreaNode({
+  area, isSelected, isPendingStart, mode, editTool, isBlocked,
+  onSelect, onChange, onStartCorridor, crossFloorLabels, stairCongestion
+}) {
   const style = AREA_STYLE[area.type] || AREA_STYLE.room;
   const isDraggable = mode === 'edit' && editTool === 'select';
+  const stairColor = stairCongestion?.color;
 
   const handleClick = (e) => {
     e.cancelBubble = true;
@@ -78,10 +82,19 @@ function AreaNode({ area, isSelected, isPendingStart, mode, editTool, isBlocked,
         offsetY={-2}
       />
       {/* Main circle */}
+      {mode === 'view' && area.type === 'stairs' && stairCongestion && (
+        <Circle
+          radius={AREA_RADIUS + 6}
+          stroke={stairColor}
+          strokeWidth={4}
+          opacity={0.8}
+          listening={false}
+        />
+      )}
       <Circle
         radius={AREA_RADIUS}
         fill={isBlocked ? '#64748b' : style.fill}
-        stroke={isSelected ? '#ffffff' : (isBlocked ? '#475569' : style.stroke)}
+        stroke={isSelected ? '#ffffff' : (isBlocked ? '#475569' : (stairColor || style.stroke))}
         strokeWidth={isSelected ? 3 : 2}
       />
       {/* Icon */}
@@ -136,6 +149,31 @@ function AreaNode({ area, isSelected, isPendingStart, mode, editTool, isBlocked,
           y={AREA_RADIUS + 22}
           listening={false}
         />
+      )}
+      {mode === 'view' && area.type === 'stairs' && stairCongestion && (
+        <Group y={AREA_RADIUS + 36} listening={false}>
+          <Rect
+            x={-58}
+            width={116}
+            height={24}
+            fill={stairCongestion.background}
+            stroke={stairColor}
+            strokeWidth={1}
+            cornerRadius={7}
+          />
+          <Text
+            x={-56}
+            y={3}
+            width={112}
+            height={18}
+            text={stairCongestion.label}
+            fill="#ffffff"
+            fontSize={10}
+            fontStyle="bold"
+            align="center"
+            verticalAlign="middle"
+          />
+        </Group>
       )}
     </Group>
   );
@@ -461,6 +499,52 @@ export default function MapCanvas({
     return labels;
   };
 
+  const getStairCongestion = (area) => {
+    if (area.type !== 'stairs') return null;
+    const connected = (crossFloorCorridors || [])
+      .filter(edge => edge.areaA_id === area.id || edge.areaB_id === area.id)
+      .map(edge => {
+        const metric = edgeMetrics?.[edge.id] || {};
+        const ratio = Math.max(0, Math.min(
+          1,
+          Number(occupancyData?.[edge.id] ?? metric.filtered_k ?? metric.occupancyRatio ?? 0)
+        ));
+        const otherId = edge.areaA_id === area.id ? edge.areaB_id : edge.areaA_id;
+        const other = allAreas.find(item => item.id === otherId);
+        return {
+          edge,
+          ratio,
+          otherFloor: other?.floor,
+          blocked: incidentData?.blockedEdges?.includes(edge.id) || metric.blocked,
+          sensorStatus: metric.sensorStatus || 'OK',
+        };
+      });
+    if (!connected.length) return null;
+
+    const selected = connected.sort((left, right) => {
+      if (left.blocked !== right.blocked) return left.blocked ? -1 : 1;
+      if ((left.sensorStatus !== 'OK') !== (right.sensorStatus !== 'OK')) {
+        return left.sensorStatus !== 'OK' ? -1 : 1;
+      }
+      return right.ratio - left.ratio;
+    })[0];
+
+    if (selected.blocked) {
+      return { color: '#64748b', background: 'rgba(51,65,85,0.94)', label: `T${selected.otherFloor ?? '?'} · BỊ CHẶN` };
+    }
+    if (selected.sensorStatus === 'STALE' || selected.sensorStatus === 'UNKNOWN') {
+      return { color: '#94a3b8', background: 'rgba(51,65,85,0.94)', label: `T${selected.otherFloor ?? '?'} · ${selected.sensorStatus}` };
+    }
+    const percentage = Math.round(selected.ratio * 100);
+    if (selected.ratio >= 0.8) {
+      return { color: '#ef4444', background: 'rgba(127,29,29,0.94)', label: `T${selected.otherFloor ?? '?'} · RẤT ĐÔNG ${percentage}%` };
+    }
+    if (selected.ratio >= 0.5) {
+      return { color: '#f59e0b', background: 'rgba(120,53,15,0.94)', label: `T${selected.otherFloor ?? '?'} · ĐÔNG ${percentage}%` };
+    }
+    return { color: '#22c55e', background: 'rgba(20,83,45,0.94)', label: `T${selected.otherFloor ?? '?'} · THOÁNG ${percentage}%` };
+  };
+
   // Rebuild the grid only when the committed viewport changes, not for each
   // dashboard update from the simulator.
   const gridDots = useMemo(() => {
@@ -596,6 +680,7 @@ export default function MapCanvas({
               mode={mode}
               editTool={editTool}
               crossFloorLabels={getCrossFloorLabels(area)}
+              stairCongestion={getStairCongestion(area)}
               onSelect={() => onSelectItem({ type: 'area', data: area })}
               onChange={(updated) => {
                 setAreas(areas.map(a => a.id === updated.id ? updated : a));

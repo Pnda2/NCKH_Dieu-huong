@@ -159,133 +159,209 @@
       "name": "Khu vực 2 – Khu vực 1",
       "length": 10,
       "areaA_id": "a_1784256587602",
-      "areaB_id": "a_1784256585920"
+      "areaB_id": "a_1784256585920",
+      "widthMeters": 1.5,
+      "capacityPeople": 30,
+      "flowCapacity": 1.95,
+      "initialOccupancy": 0.35
     },
     {
       "id": "e_1784256592830",
       "name": "Khu vực 2 – Khu vực 3",
       "length": 10,
       "areaA_id": "a_1784256587602",
-      "areaB_id": "a_1784256588572"
+      "areaB_id": "a_1784256588572",
+      "widthMeters": 1.5,
+      "capacityPeople": 30,
+      "flowCapacity": 1.95,
+      "initialOccupancy": 0.35
     },
     {
       "id": "e_1784256610387",
       "name": "Khu vực 4 – Khu vực 5",
       "length": 10,
       "areaA_id": "a_1784256604234",
-      "areaB_id": "a_1784256605158"
+      "areaB_id": "a_1784256605158",
+      "widthMeters": 1.5,
+      "capacityPeople": 30,
+      "flowCapacity": 1.95,
+      "initialOccupancy": 0.35
     },
     {
       "id": "e_1784256611521",
       "name": "Khu vực 5 – Khu vực 6",
       "length": 10,
       "areaA_id": "a_1784256605158",
-      "areaB_id": "a_1784256606115"
+      "areaB_id": "a_1784256606115",
+      "widthMeters": 1.5,
+      "capacityPeople": 30,
+      "flowCapacity": 1.95,
+      "initialOccupancy": 0.35
     },
     {
       "id": "e_1784256616049_454",
       "name": "Khu vực 6 – Khu vực 3",
       "length": 10,
       "areaA_id": "a_1784256606115",
-      "areaB_id": "a_1784256588572"
+      "areaB_id": "a_1784256588572",
+      "widthMeters": 1.5,
+      "capacityPeople": 30,
+      "flowCapacity": 1.95,
+      "initialOccupancy": 0.35
     },
     {
       "id": "e_1784594967567",
       "name": "Khu vực 1 – Khu vực 7",
       "length": 10,
       "areaA_id": "a_1784256585920",
-      "areaB_id": "a_1784594948992"
+      "areaB_id": "a_1784594948992",
+      "widthMeters": 1.5,
+      "capacityPeople": 30,
+      "flowCapacity": 1.95,
+      "initialOccupancy": 0.35
     },
     {
       "id": "e_1784607173514",
       "name": "Khu vực 17 – Khu vực 4",
       "length": 10,
       "areaA_id": "a_1784607145219",
-      "areaB_id": "a_1784256604234"
+      "areaB_id": "a_1784256604234",
+      "widthMeters": 1.5,
+      "capacityPeople": 30,
+      "flowCapacity": 1.95,
+      "initialOccupancy": 0.35
     },
     {
       "id": "e_1784607174786",
       "name": "Khu vực 15 – Khu vực 14",
       "length": 10,
       "areaA_id": "a_1784607142340",
-      "areaB_id": "a_1784607138553"
+      "areaB_id": "a_1784607138553",
+      "widthMeters": 1.5,
+      "capacityPeople": 30,
+      "flowCapacity": 1.95,
+      "initialOccupancy": 0.35
     },
     {
       "id": "e_1784607175946",
       "name": "Khu vực 14 – Khu vực 5",
       "length": 10,
       "areaA_id": "a_1784607138553",
-      "areaB_id": "a_1784256605158"
+      "areaB_id": "a_1784256605158",
+      "widthMeters": 1.5,
+      "capacityPeople": 30,
+      "flowCapacity": 1.95,
+      "initialOccupancy": 0.35
     },
     {
       "id": "e_1784607177209",
       "name": "Khu vực 14 – Khu vực 16",
       "length": 10,
       "areaA_id": "a_1784607138553",
-      "areaB_id": "a_1784607143651"
+      "areaB_id": "a_1784607143651",
+      "widthMeters": 1.5,
+      "capacityPeople": 30,
+      "flowCapacity": 1.95,
+      "initialOccupancy": 0.35
     },
     {
       "id": "e_1784607195669",
       "name": "Khu vực 8 – Khu vực 10",
       "length": 10,
       "areaA_id": "a_1784607131626",
-      "areaB_id": "a_1784607133214"
+      "areaB_id": "a_1784607133214",
+      "widthMeters": 1.5,
+      "capacityPeople": 30,
+      "flowCapacity": 1.95,
+      "initialOccupancy": 0.35
     },
     {
       "id": "e_1784607196871",
       "name": "Khu vực 9 – Khu vực 10",
       "length": 10,
       "areaA_id": "a_1784607132610",
-      "areaB_id": "a_1784607133214"
+      "areaB_id": "a_1784607133214",
+      "widthMeters": 1.5,
+      "capacityPeople": 30,
+      "flowCapacity": 1.95,
+      "initialOccupancy": 0.35
     },
     {
       "id": "e_1784607198019",
       "name": "Khu vực 10 – Khu vực 11",
       "length": 10,
       "areaA_id": "a_1784607133214",
-      "areaB_id": "a_1784607133995"
+      "areaB_id": "a_1784607133995",
+      "widthMeters": 1.5,
+      "capacityPeople": 30,
+      "flowCapacity": 1.95,
+      "initialOccupancy": 0.35
     },
     {
       "id": "e_1784607198814",
       "name": "Khu vực 11 – Khu vực 12",
       "length": 10,
       "areaA_id": "a_1784607133995",
-      "areaB_id": "a_1784607135092"
+      "areaB_id": "a_1784607135092",
+      "widthMeters": 1.5,
+      "capacityPeople": 30,
+      "flowCapacity": 1.95,
+      "initialOccupancy": 0.35
     },
     {
       "id": "e_1784607199732",
       "name": "Khu vực 12 – Khu vực 13",
       "length": 10,
       "areaA_id": "a_1784607135092",
-      "areaB_id": "a_1784607135861"
+      "areaB_id": "a_1784607135861",
+      "widthMeters": 1.5,
+      "capacityPeople": 30,
+      "flowCapacity": 1.95,
+      "initialOccupancy": 0.35
     },
     {
       "id": "e_1784607201527",
       "name": "Khu vực 9 – Khu vực 12",
       "length": 10,
       "areaA_id": "a_1784607132610",
-      "areaB_id": "a_1784607135092"
+      "areaB_id": "a_1784607135092",
+      "widthMeters": 1.5,
+      "capacityPeople": 30,
+      "flowCapacity": 1.95,
+      "initialOccupancy": 0.35
     },
     {
       "id": "e_1784607227098_248",
       "name": "Khu vực 16 – Khu vực 13",
       "length": 10,
       "areaA_id": "a_1784607143651",
-      "areaB_id": "a_1784607135861"
+      "areaB_id": "a_1784607135861",
+      "widthMeters": 1.5,
+      "capacityPeople": 30,
+      "flowCapacity": 1.95,
+      "initialOccupancy": 0.35
     },
     {
       "id": "e_1784607251904",
       "name": "Khu vực 1 – Khu vực 18",
       "length": 10,
       "areaA_id": "a_1784256585920",
-      "areaB_id": "a_1784607239695"
+      "areaB_id": "a_1784607239695",
+      "widthMeters": 1.5,
+      "capacityPeople": 30,
+      "flowCapacity": 1.95,
+      "initialOccupancy": 0.35
     },
     {
       "id": "e_1784607253776",
       "name": "Khu vực 2 – Khu vực 19",
       "length": 10,
       "areaA_id": "a_1784256587602",
-      "areaB_id": "a_1784607246504"
+      "areaB_id": "a_1784607246504",
+      "widthMeters": 1.5,
+      "capacityPeople": 30,
+      "flowCapacity": 1.95,
+      "initialOccupancy": 0.35
     }
   ],
   "floorImages": {},

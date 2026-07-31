@@ -9,7 +9,8 @@ import time
 import paho.mqtt.client as mqtt
 
 from csi_layer import CSILayer
-from dynamic_routing import DynamicEvacuationRouter, WeightParameters, corridor_capacity, dynamic_edge_cost
+from dynamic_routing import DynamicEvacuationRouter, WeightParameters, corridor_capacity, corridor_flow_capacity, dynamic_edge_cost
+from evacuation_optimizer import EvacuationOptimizer, OptimizerConfig, OptimizerError, fallback_routes
 from guidance_controller import GuidanceController
 
 
@@ -22,10 +23,9 @@ CONFIG_FILE = os.path.join(os.path.dirname(__file__), "config.json")
 TICK_SECONDS = 1.0
 FREE_WALKING_SPEED = 1.2
 DEFAULT_INITIAL_OCCUPANCY = (0.20, 0.75)
-BASE_TRANSFER_RATE = 0.025  # equivalent corridor occupancy moved per second
 GAMMA = max(0.0, float(os.getenv("WIEVAC_GAMMA", "1.0")))
 DELTA = max(1.0, float(os.getenv("WIEVAC_DELTA", "2.0")))
-ROUTE_CHANGE_PENALTY = 5.0
+ROUTE_CHANGE_PENALTY = float(os.getenv("WIEVAC_ROUTE_CHANGE_PENALTY", "0.5"))
 LOGIT_THETA = 0.35
 OCCUPANCY_EPSILON = 0.005
 DEFAULT_CORRIDOR_WIDTH_METERS = 1.2
@@ -42,6 +42,8 @@ routing_parameters = WeightParameters(
     delta=DELTA,
     hazard_block_threshold=float(os.getenv("WIEVAC_HAZARD_BLOCK_THRESHOLD", "100")),
     people_per_square_meter=float(os.getenv("WIEVAC_PEOPLE_PER_SQM", "2.0")),
+    specific_flow_per_meter=float(os.getenv("WIEVAC_SPECIFIC_FLOW_PER_METER", "1.3")),
+    stair_flow_factor=float(os.getenv("WIEVAC_STAIR_FLOW_FACTOR", "0.65")),
 ).validated()
 routing_service = None
 simulation_active = False
@@ -53,7 +55,10 @@ edge_hazards = {}
 
 state_lock = threading.RLock()
 edge_occupancy = {}
+edge_states = {}
+edge_loads = {}
 previous_next_edge = {}
+previous_route_changed_at = {}
 pending_occupancy_updates = []
 latest_sensor_occupancy = {}
 simulation_started_at = None
@@ -61,7 +66,20 @@ elapsed_before_pause = 0
 simulation_step = 0
 evacuated_load = 0.0
 initial_total_load = 0.0
+measurement_correction = 0.0
+optimizer_status = "fallback"
 guidance_controller = GuidanceController()
+csi_layer = CSILayer(
+    noise_level=0.03,
+    ema_alpha=float(os.getenv("WIEVAC_CSI_EMA_ALPHA", "0.35")),
+    stale_seconds=float(os.getenv("WIEVAC_CSI_STALE_SECONDS", "8")),
+)
+optimizer = EvacuationOptimizer(OptimizerConfig(
+    horizon_seconds=float(os.getenv("WIEVAC_OPTIMIZER_HORIZON_SECONDS", "30")),
+    timeout_seconds=float(os.getenv("WIEVAC_OPTIMIZER_TIMEOUT_SECONDS", "1")),
+    route_change_penalty=ROUTE_CHANGE_PENALTY,
+    min_route_improvement=float(os.getenv("WIEVAC_MIN_ROUTE_IMPROVEMENT", "0.05")),
+))
 
 
 def clamp_occupancy(value):
@@ -69,6 +87,24 @@ def clamp_occupancy(value):
         return max(0.0, min(1.0, float(value)))
     except (TypeError, ValueError):
         return 0.0
+
+
+def refresh_occupancy_from_loads():
+    """Compatibility view for MQTT/UI; movement itself always uses load units."""
+    for edge in map_config.get("edges", []):
+        edge_id = edge["id"]
+        capacity = corridor_capacity(edge, routing_parameters)
+        edge_occupancy[edge_id] = 0.0 if capacity <= 0 else clamp_occupancy(edge_loads.get(edge_id, 0.0) / capacity)
+
+
+def edge_state_snapshot():
+    result = csi_layer.all_states(edge_loads.keys())
+    for edge in map_config.get("edges", []):
+        edge_id = edge["id"]
+        state = result.get(edge_id, {})
+        capacity = corridor_capacity(edge, routing_parameters)
+        result[edge_id] = {**state, "estimated_load": edge_loads.get(edge_id, 0.0), "capacity": capacity}
+    return result
 
 
 def load_config():
@@ -166,13 +202,49 @@ def compute_routes(graph, edge_map, occupancy):
     route_options = {}
     for area_id, route in routing_service.routes_for_all_areas().items():
         distances[area_id] = route["cost"]
-        edge_id = route["next_edge"]
-        if not edge_id:
-            continue
-        edge = edge_map[edge_id]
-        neighbour = edge["areaB_id"] if edge["areaA_id"] == area_id else edge["areaA_id"]
-        route_options[area_id] = [(neighbour, edge_id, 1.0)]
+        route_options[area_id] = route.get("route_candidates", [])
     return exits, distances, route_options
+
+
+def optimize_routes(route_candidates, edge_map):
+    """Use global LP ratios when possible; D* Lite remains the safe fallback."""
+    global optimizer_status
+    areas = {area["id"]: area for area in map_config.get("areas", [])}
+    area_loads = {area_id: 0.0 for area_id in areas}
+    for edge_id, load in edge_loads.items():
+        edge = edge_map.get(edge_id, {})
+        for endpoint in (edge.get("areaA_id"), edge.get("areaB_id")):
+            if endpoint in area_loads:
+                area_loads[endpoint] += load / 2.0
+    edge_limits = {
+        edge_id: min(corridor_flow_capacity(edge, areas, routing_parameters) * TICK_SECONDS,
+                     max(0.0, corridor_capacity(edge, routing_parameters) - edge_loads.get(edge_id, 0.0)))
+        for edge_id, edge in edge_map.items() if edge_id not in blocked_edges
+    }
+    try:
+        routes, status = optimizer.optimize(route_candidates, area_loads, edge_limits, blocked_edges, {})
+        if status != "optimal":
+            raise OptimizerError(status)
+        minimum_gain = float(os.getenv("WIEVAC_MIN_ROUTE_IMPROVEMENT", "0.05"))
+        hold_seconds = float(os.getenv("WIEVAC_REPLAN_INTERVAL_SECONDS", "1"))
+        now = time.monotonic()
+        for area_id, selected in routes.items():
+            old_edge = previous_next_edge.get(area_id)
+            if not old_edge or not selected or selected[0][1] == old_edge:
+                continue
+            old_candidate = next((item for item in route_candidates.get(area_id, []) if item[1] == old_edge), None)
+            new_candidate = next((item for item in route_candidates.get(area_id, []) if item[1] == selected[0][1]), None)
+            if old_candidate and new_candidate and old_edge not in blocked_edges and ((old_candidate[2] - new_candidate[2]) < minimum_gain or now - previous_route_changed_at.get(area_id, 0) < hold_seconds):
+                routes[area_id] = [(old_candidate[0], old_edge, 1.0)]
+            if routes[area_id][0][1] != old_edge:
+                previous_route_changed_at[area_id] = now
+            previous_next_edge[area_id] = routes[area_id][0][1]
+        optimizer_status = "optimal"
+        return routes
+    except Exception as exc:
+        optimizer_status = "fallback"
+        print(f"[OPTIMIZER] fallback: {exc}")
+        return fallback_routes(route_candidates)
 
 
 def make_log(event_type, message):
@@ -199,7 +271,7 @@ def queue_occupancy_update(edge_id, value, mode="set"):
 
 
 def apply_pending_occupancy_updates(client, edge_map):
-    global initial_total_load
+    global measurement_correction, edge_states
     events = []
     with state_lock:
         updates = list(pending_occupancy_updates)
@@ -208,16 +280,19 @@ def apply_pending_occupancy_updates(client, edge_map):
             edge_id = update.get("edge_id")
             if edge_id not in edge_occupancy:
                 continue
-            old_k = edge_occupancy[edge_id]
+            old_load = edge_loads.get(edge_id, 0.0)
+            capacity = corridor_capacity(edge_map[edge_id], routing_parameters)
+            old_k = 0.0 if capacity <= 0 else old_load / capacity
             if update.get("mode") == "delta":
                 new_k = clamp_occupancy(old_k + update.get("value", 0.0))
             else:
                 new_k = clamp_occupancy(update.get("value", old_k))
-            edge_occupancy[edge_id] = new_k
-            initial_total_load = max(
-                evacuated_load + sum(edge_occupancy.values()),
-                initial_total_load + (new_k - old_k),
-            )
+            new_load = new_k * capacity
+            edge_loads[edge_id] = new_load
+            measurement_correction += new_load - old_load
+            csi_layer.update(edge_id, new_k, confidence=1.0)
+            refresh_occupancy_from_loads()
+            edge_states = edge_state_snapshot()
             events.append(
                 make_log(
                     "adjustment",
@@ -238,7 +313,7 @@ def publish_state(client, status, step, trapped_ids=None, message=None):
             else 0
         )
         metrics = (
-            routing_service.edge_metrics(edge_occupancy, edge_hazards)
+            routing_service.edge_metrics(edge_states or edge_state_snapshot(), edge_hazards)
             if routing_service
             else {}
         )
@@ -246,12 +321,13 @@ def publish_state(client, status, step, trapped_ids=None, message=None):
             "status": status,
             "step": step,
             "elapsedSeconds": elapsed,
-            "initialLoad": round(initial_total_load, 3),
-            "evacuatedLoad": round(evacuated_load, 3),
-            "remainingLoad": round(sum(values), 3),
-            "trappedLoad": round(
-                sum(edge_occupancy.get(edge_id, 0.0) for edge_id in trapped_ids), 3
-            ),
+            "initialEstimatedLoad": round(initial_total_load, 3),
+            "measurementCorrection": round(measurement_correction, 3),
+            "evacuatedEstimatedLoad": round(evacuated_load, 3),
+            "remainingEstimatedLoad": round(sum(edge_loads.values()), 3),
+            "trappedEstimatedLoad": round(sum(edge_loads.get(edge_id, 0.0) for edge_id in trapped_ids), 3),
+            "conservationError": round(initial_total_load + measurement_correction - evacuated_load - sum(edge_loads.values()), 8),
+            "initialLoad": round(initial_total_load, 3), "evacuatedLoad": round(evacuated_load, 3), "remainingLoad": round(sum(edge_loads.values()), 3),
             "averageOccupancy": round(sum(values) / len(values), 3) if values else 0.0,
             "occupiedCorridors": sum(value > OCCUPANCY_EPSILON for value in values),
             "estimatedPeople": round(sum(item["currentPeople"] for item in metrics.values()), 1),
@@ -265,6 +341,7 @@ def publish_state(client, status, step, trapped_ids=None, message=None):
             ),
             "edgeMetrics": metrics,
             "routingAlgorithm": "D* Lite",
+            "optimizerStatus": optimizer_status,
             "lastUpdated": int(time.time()),
             "trappedCorridors": [
                 {
@@ -278,6 +355,7 @@ def publish_state(client, status, step, trapped_ids=None, message=None):
                 edge_id: round(value, 3)
                 for edge_id, value in edge_occupancy.items()
             },
+            "edgeStates": edge_states or edge_state_snapshot(),
         }
         if message:
             payload["message"] = message
@@ -285,11 +363,12 @@ def publish_state(client, status, step, trapped_ids=None, message=None):
 
 
 def initialize_simulation():
-    global edge_occupancy, previous_next_edge
+    global edge_occupancy, edge_loads, edge_states, previous_next_edge, previous_route_changed_at
     global simulation_started_at, elapsed_before_pause, simulation_step
-    global evacuated_load, initial_total_load
+    global evacuated_load, initial_total_load, measurement_correction
 
     edge_occupancy = {}
+    edge_loads = {}
     for edge in map_config.get("edges", []):
         edge_id = edge["id"]
         if edge_id in latest_sensor_occupancy:
@@ -298,11 +377,18 @@ def initialize_simulation():
             value = edge.get("initialOccupancy")
         else:
             value = random.uniform(*DEFAULT_INITIAL_OCCUPANCY)
-        edge_occupancy[edge_id] = clamp_occupancy(value)
+        ratio = clamp_occupancy(value)
+        capacity = corridor_capacity(edge, routing_parameters)
+        edge_loads[edge_id] = ratio * capacity
+        csi_layer.update(edge_id, ratio, confidence=0.8)
+    refresh_occupancy_from_loads()
+    edge_states = edge_state_snapshot()
 
     previous_next_edge = {}
+    previous_route_changed_at = {}
     evacuated_load = 0.0
-    initial_total_load = sum(edge_occupancy.values())
+    measurement_correction = 0.0
+    initial_total_load = sum(edge_loads.values())
     simulation_started_at = time.time()
     elapsed_before_pause = 0
     simulation_step = 0
@@ -342,8 +428,43 @@ def select_egress_options(edge, exits, distances, route_options):
     ]
 
 
+def advance_loads(edge_map_all, exits, distances, route_options):
+    """Apply one conservative physical tick in equivalent load units."""
+    global evacuated_load
+    old = dict(edge_loads)
+    nxt = dict(old)
+    reserved = {edge_id: 0.0 for edge_id in old}
+    trapped = set()
+    for edge_id, source_load in old.items():
+        if source_load <= OCCUPANCY_EPSILON:
+            continue
+        source = edge_map_all[edge_id]
+        options = select_egress_options(source, exits, distances, route_options)
+        if not options:
+            trapped.add(edge_id); continue
+        source_limit = corridor_flow_capacity(source, {a["id"]: a for a in map_config.get("areas", [])}, routing_parameters) * TICK_SECONDS
+        budget = min(source_load, source_limit)
+        moved = 0.0
+        for endpoint, choices, endpoint_share in options:
+            requested_endpoint = budget * endpoint_share
+            if endpoint in exits:
+                evacuated_load += requested_endpoint; moved += requested_endpoint; continue
+            for _target, target_edge_id, share in choices[:2]:
+                target = edge_map_all[target_edge_id]
+                capacity = corridor_capacity(target, routing_parameters)
+                flow_limit = corridor_flow_capacity(target, {a["id"]: a for a in map_config.get("areas", [])}, routing_parameters) * TICK_SECONDS
+                available = max(0.0, capacity - old.get(target_edge_id, 0.0) - reserved[target_edge_id])
+                transfer = min(requested_endpoint * share, available, flow_limit)
+                if transfer > 0:
+                    nxt[target_edge_id] += transfer; reserved[target_edge_id] += transfer; moved += transfer
+        nxt[edge_id] = max(0.0, nxt[edge_id] - moved)
+    edge_loads.update(nxt)
+    refresh_occupancy_from_loads()
+    return trapped
+
+
 def simulation_loop(client, resume=False):
-    global simulation_active, evacuated_load, simulation_started_at, simulation_step
+    global simulation_active, evacuated_load, simulation_started_at, simulation_step, edge_states
     areas = map_config.get("areas", [])
     edges = map_config.get("edges", [])
     edge_map_all = {edge["id"]: edge for edge in edges}
@@ -378,22 +499,10 @@ def simulation_loop(client, resume=False):
         with state_lock:
             graph, edge_map = build_graph()
             exits, distances, route_options = compute_routes(
-                graph, edge_map, edge_occupancy
+                graph, edge_map, edge_states or edge_state_snapshot()
             )
-
-            trapped_ids = set()
-            movement_plan = {}
-            for edge_id, k in edge_occupancy.items():
-                if k <= OCCUPANCY_EPSILON:
-                    continue
-                edge = edge_map_all[edge_id]
-                egress_options = select_egress_options(
-                    edge, exits, distances, route_options
-                )
-                if not egress_options:
-                    trapped_ids.add(edge_id)
-                else:
-                    movement_plan[edge_id] = egress_options
+            route_options = optimize_routes(route_options, edge_map_all)
+            trapped_ids = advance_loads(edge_map_all, exits, distances, route_options)
 
             for edge_id in trapped_ids - last_trapped_ids:
                 events.append(
@@ -411,70 +520,8 @@ def simulation_loop(client, resume=False):
                 )
             last_trapped_ids = set(trapped_ids)
 
-            old_occupancy = dict(edge_occupancy)
-            next_occupancy = dict(edge_occupancy)
-            reserved_incoming = {edge_id: 0.0 for edge_id in edge_occupancy}
-
-            for edge_id, egress_options in movement_plan.items():
-                source_k = old_occupancy[edge_id]
-                total_budget = min(
-                    source_k, BASE_TRANSFER_RATE * TICK_SECONDS
-                )
-                if total_budget <= OCCUPANCY_EPSILON:
-                    continue
-
-                moved = 0.0
-                for endpoint, choices, endpoint_probability in egress_options:
-                    endpoint_budget = total_budget * endpoint_probability
-                    if endpoint in exits:
-                        evacuated_load += endpoint_budget
-                        moved += endpoint_budget
-                        continue
-
-                    valid_choices = [
-                        option
-                        for option in choices
-                        if option[1] not in blocked_edges
-                    ]
-                    probability_sum = sum(
-                        option[2] for option in valid_choices
-                    )
-                    if probability_sum <= 0:
-                        continue
-
-                    for _, next_edge_id, probability in valid_choices:
-                        next_k = (
-                            old_occupancy.get(next_edge_id, 0.0)
-                            + reserved_incoming[next_edge_id]
-                        )
-                        available = max(0.0, 1.0 - next_k)
-                        acceptance = max(0.1, (1.0 - next_k) ** 1.5)
-                        requested = (
-                            endpoint_budget * probability / probability_sum
-                        )
-                        transfer = min(requested * acceptance, available)
-                        if transfer <= OCCUPANCY_EPSILON:
-                            continue
-                        next_occupancy[next_edge_id] += transfer
-                        reserved_incoming[next_edge_id] += transfer
-                        moved += transfer
-
-                    if valid_choices:
-                        previous_next_edge[endpoint] = max(
-                            valid_choices, key=lambda option: option[2]
-                        )[1]
-
-                next_occupancy[edge_id] = max(
-                    0.0, next_occupancy[edge_id] - moved
-                )
-
-            edge_occupancy.update(
-                {
-                    edge_id: clamp_occupancy(value)
-                    for edge_id, value in next_occupancy.items()
-                }
-            )
             theoretical_occupancy = dict(edge_occupancy)
+            edge_states = edge_state_snapshot()
 
         guidance_controller.update(
             client,
@@ -484,11 +531,9 @@ def simulation_loop(client, resume=False):
             exits,
             blocked_edges,
         )
-        sensed_occupancy = csi.process_edge_data(theoretical_occupancy)
-        sensed_occupancy = {
-            edge_id: round(value, 3)
-            for edge_id, value in sensed_occupancy.items()
-        }
+        csi_layer.process_edge_data(theoretical_occupancy)
+        edge_states = edge_state_snapshot()
+        sensed_occupancy = {edge_id: round(state.get("filtered_k", 1.0), 3) for edge_id, state in edge_states.items() if state.get("filtered_k") is not None}
         if not simulation_active:
             break
         client.publish(
@@ -499,12 +544,12 @@ def simulation_loop(client, resume=False):
 
         with state_lock:
             reachable_load = sum(
-                k
-                for edge_id, k in edge_occupancy.items()
+                edge_loads.get(edge_id, 0.0)
+                for edge_id in edge_loads
                 if edge_id not in last_trapped_ids
             )
             trapped_load = sum(
-                edge_occupancy.get(edge_id, 0.0)
+                edge_loads.get(edge_id, 0.0)
                 for edge_id in last_trapped_ids
             )
 
@@ -651,7 +696,7 @@ def on_connect(client, userdata, flags, reason_code, properties=None):
 
 
 def on_message(client, userdata, msg):
-    global map_config, simulation_active, simulation_thread, routing_service
+    global map_config, simulation_active, simulation_thread, routing_service, edge_states
     topic = msg.topic
     if topic == "building/config":
         try:
@@ -702,6 +747,9 @@ def on_message(client, userdata, msg):
             }
             with state_lock:
                 latest_sensor_occupancy.update(clean_values)
+                for edge_id, value in clean_values.items():
+                    csi_layer.update(edge_id, value, confidence=1.0)
+                edge_states = edge_state_snapshot()
             if simulation_active:
                 for edge_id, k in clean_values.items():
                     queue_occupancy_update(edge_id, k, "set")

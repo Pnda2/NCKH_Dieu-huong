@@ -120,6 +120,11 @@ class DStarLiteIntegrationTests(unittest.TestCase):
         self.assertFalse(route["reachable"])
         self.assertEqual(route["edge_ids"], [])
 
+    def test_returns_two_safe_route_candidates(self):
+        route = self.router.route_from("start")
+        self.assertEqual(len(route["route_candidates"]), 2)
+        self.assertEqual({item[1] for item in route["route_candidates"]}, {"short_a", "long_b"})
+
 
 if __name__ == "__main__":
     unittest.main()

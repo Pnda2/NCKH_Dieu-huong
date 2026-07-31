@@ -24,6 +24,7 @@ const DEFAULT_CORRIDOR_WIDTH_METERS = 1.2;
 const DEFAULT_PEOPLE_PER_SQM = Number(process.env.WIEVAC_PEOPLE_PER_SQM || 2);
 const HTTP_PORT = Number(process.env.WIEVAC_HTTP_PORT || 3001);
 const MQTT_PORT = Number(process.env.WIEVAC_MQTT_PORT || 1883);
+let simulationRunning = false;
 
 function normalizeMapData(mapData) {
   const edges = Array.isArray(mapData?.edges)
@@ -35,17 +36,44 @@ function normalizeMapData(mapData) {
         const capacityPeople = Number.isFinite(explicitCapacity)
           ? explicitCapacity
           : length * (hasValidWidth ? width : DEFAULT_CORRIDOR_WIDTH_METERS) * DEFAULT_PEOPLE_PER_SQM;
+        const explicitFlow = Number(edge.flowCapacity);
+        const flowCapacity = Number.isFinite(explicitFlow) && explicitFlow > 0
+          ? explicitFlow : (hasValidWidth ? width : DEFAULT_CORRIDOR_WIDTH_METERS) * Number(process.env.WIEVAC_SPECIFIC_FLOW_PER_METER || 1.3);
         const hazard = Math.max(0, Number(edge.hazard) || 0);
         return {
           ...edge,
           widthMeters: hasValidWidth ? width : DEFAULT_CORRIDOR_WIDTH_METERS,
           widthEstimated: hasValidWidth ? Boolean(edge.widthEstimated) : true,
           capacityPeople,
+          flowCapacity,
+          initialOccupancy: Math.max(0, Math.min(1, Number(edge.initialOccupancy ?? 0.35))),
           hazard,
         };
       })
     : [];
   return { ...mapData, edges };
+}
+
+function validateMapData(mapData) {
+  if (!Array.isArray(mapData?.areas) || !Array.isArray(mapData?.edges)) return "Map must include areas and edges arrays";
+  const areaIds = new Set();
+  for (const area of mapData.areas) {
+    if (!area?.id || areaIds.has(area.id)) return "Area IDs must be unique";
+    areaIds.add(area.id);
+  }
+  const edgeIds = new Set();
+  for (const edge of mapData.edges) {
+    if (!edge?.id || edgeIds.has(edge.id)) return "Edge IDs must be unique";
+    edgeIds.add(edge.id);
+    if (!areaIds.has(edge.areaA_id) || !areaIds.has(edge.areaB_id)) return `Edge ${edge.id} references an unknown area`;
+    if (edge.areaA_id === edge.areaB_id) return `Edge ${edge.id} cannot be a self-loop`;
+    if (!(Number(edge.length) > 0) || !(Number(edge.widthMeters) > 0)) return `Edge ${edge.id} needs length and widthMeters greater than 0`;
+    if (edge.capacityPeople !== undefined && edge.capacityPeople !== '' && !(Number(edge.capacityPeople) > 0)) return `Edge ${edge.id} capacityPeople must be greater than 0`;
+    if (edge.flowCapacity !== undefined && edge.flowCapacity !== '' && !(Number(edge.flowCapacity) > 0)) return `Edge ${edge.id} flowCapacity must be greater than 0`;
+    if (edge.initialOccupancy !== undefined && (Number(edge.initialOccupancy) < 0 || Number(edge.initialOccupancy) > 1)) return `Edge ${edge.id} initialOccupancy must be between 0 and 1`;
+  }
+  for (const device of mapData.devices || []) if (!device?.id || !areaIds.has(device.area_id)) return "Every device must have an ID and reference an existing area";
+  return null;
 }
 
 // Ensure map file exists
@@ -70,6 +98,7 @@ async function startServer() {
   });
 
   app.post("/api/map", (req, res) => {
+    if (simulationRunning) return res.status(409).json({ error: "Stop or reset the simulation before changing map topology" });
     const invalidExplicitWidth = Array.isArray(req.body?.edges)
       && req.body.edges.some((edge) => (
         edge.widthMeters !== undefined
@@ -81,9 +110,8 @@ async function startServer() {
       return res.status(400).json({ error: "Every corridor widthMeters must be greater than 0" });
     }
     const mapData = normalizeMapData(req.body);
-    if (!Array.isArray(mapData.areas) || !Array.isArray(req.body?.edges)) {
-      return res.status(400).json({ error: "Map must include areas and edges arrays" });
-    }
+    const validationError = validateMapData(mapData);
+    if (validationError) return res.status(400).json({ error: validationError });
     fs.writeFile(MAP_FILE, JSON.stringify(mapData, null, 2), (err) => {
       if (err) return res.status(500).json({ error: "Failed to save map" });
 
@@ -121,6 +149,7 @@ async function startServer() {
           });
         }
 
+        simulationRunning = true;
         // Publish start signal to MQTT
         aedes.publish({
           topic: "building/simulation/start",
@@ -149,6 +178,7 @@ async function startServer() {
   });
 
   app.post("/api/simulate/stop", (req, res) => {
+    simulationRunning = false;
     aedes.publish({
       topic: "building/simulation/stop",
       payload: JSON.stringify({ action: "stop" }),
@@ -159,6 +189,7 @@ async function startServer() {
   });
 
   app.post("/api/simulate/reset", (req, res) => {
+    simulationRunning = false;
     aedes.publish({
       topic: "building/simulation/reset",
       payload: JSON.stringify({ action: "reset" }),
@@ -271,6 +302,7 @@ async function startServer() {
       } else if (packet.topic === "building/simulation/state") {
         try {
           const data = JSON.parse(packet.payload.toString());
+          simulationRunning = data.status === "running";
           io.emit("simulation_state", data);
         } catch (e) {
           console.error("Failed to parse simulation state", e);

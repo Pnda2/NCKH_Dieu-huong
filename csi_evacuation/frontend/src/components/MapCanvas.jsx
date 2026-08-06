@@ -3,11 +3,24 @@ import { Stage, Layer, Circle, Line, Arrow, Text, Image, Group, Rect } from 'rea
 import useImage from 'use-image';
 
 const AREA_RADIUS = 28;
+const ROOM_HALF = 30;
+const MIN_SCALE = 0.45;
+const MAX_SCALE = 2.6;
 
 const AREA_STYLE = {
   room:   { fill: '#3b82f6', stroke: '#1d4ed8', icon: '■' },
   stairs: { fill: '#f97316', stroke: '#c2410c', icon: '▲' },
   exit:   { fill: '#22c55e', stroke: '#15803d', icon: '★' },
+};
+
+const isJunction = (area) => area?.type === 'room' && area?.visualKind === 'junction';
+const nodeBoundaryPoint = (area, nx, ny) => {
+  if (area?.type === 'room' && !isJunction(area)) {
+    const distance = Math.min(ROOM_HALF / Math.max(Math.abs(nx), .0001), ROOM_HALF / Math.max(Math.abs(ny), .0001));
+    return { x: area.x + nx * distance, y: area.y + ny * distance };
+  }
+  const radius = isJunction(area) ? AREA_RADIUS - 2 : AREA_RADIUS + 2;
+  return { x: area.x + nx * radius, y: area.y + ny * radius };
 };
 
 function BackgroundImage({ data, mode, onUpdate }) {
@@ -42,6 +55,7 @@ function AreaNode({
   onSelect, onChange, onStartCorridor, crossFloorLabels, stairCongestion
 }) {
   const style = AREA_STYLE[area.type] || AREA_STYLE.room;
+  const junction = isJunction(area);
   const isDraggable = mode === 'edit' && editTool === 'select';
   const stairColor = stairCongestion?.color;
 
@@ -75,12 +89,8 @@ function AreaNode({
           strokeWidth={2}
         />
       )}
-      {/* Shadow circle */}
-      <Circle
-        radius={AREA_RADIUS + 2}
-        fill="rgba(0,0,0,0.2)"
-        offsetY={-2}
-      />
+      {/* Base silhouette: rooms are square, circulation junctions are round. */}
+      {area.type === 'room' && !junction ? <Rect x={-ROOM_HALF - 2} y={-ROOM_HALF - 2} width={(ROOM_HALF + 2) * 2} height={(ROOM_HALF + 2) * 2} cornerRadius={8} fill="rgba(0,0,0,0.2)" offsetY={-2} /> : <Circle radius={AREA_RADIUS + 2} fill="rgba(0,0,0,0.2)" offsetY={-2} />}
       {/* Main circle */}
       {mode === 'view' && area.type === 'stairs' && stairCongestion && (
         <Circle
@@ -91,19 +101,14 @@ function AreaNode({
           listening={false}
         />
       )}
-      <Circle
-        radius={AREA_RADIUS}
-        fill={isBlocked ? '#64748b' : style.fill}
-        stroke={isSelected ? '#ffffff' : (isBlocked ? '#475569' : (stairColor || style.stroke))}
-        strokeWidth={isSelected ? 3 : 2}
-      />
+      {area.type === 'room' && !junction ? <Rect x={-ROOM_HALF} y={-ROOM_HALF} width={ROOM_HALF * 2} height={ROOM_HALF * 2} cornerRadius={7} fill={isBlocked ? '#64748b' : style.fill} stroke={isSelected ? '#ffffff' : (isBlocked ? '#475569' : style.stroke)} strokeWidth={isSelected ? 3 : 2} /> : <Circle radius={AREA_RADIUS} fill={isBlocked ? '#64748b' : (junction ? '#14b8a6' : style.fill)} stroke={isSelected ? '#ffffff' : (isBlocked ? '#475569' : (stairColor || (junction ? '#0f766e' : style.stroke)))} strokeWidth={isSelected ? 3 : 2} />}
       {/* Icon */}
       <Text
         text={
           area.type === 'stairs' 
             ? (crossFloorLabels?.some(l => l.startsWith('▼')) && crossFloorLabels?.some(l => l.startsWith('▲'))) ? '⬍'
               : (crossFloorLabels?.some(l => l.startsWith('▼')) ? '▼' : '▲')
-            : area.type === 'exit' ? (isBlocked ? '🚫' : '🚪') : '●'
+            : area.type === 'exit' ? (isBlocked ? '🚫' : '🚪') : junction ? '↔' : '▣'
         }
         fontSize={16}
         fill="white"
@@ -179,10 +184,11 @@ function AreaNode({
   );
 }
 
-function CorridorEdge({ corridor, areaA, areaB, isSelected, onSelect, mode, occupancyData, isBlocked, edgeMetric }) {
+function CorridorEdge({ corridor, areaA, areaB, isSelected, onSelect, mode, occupancyData, isBlocked, edgeMetric, simulationStatus }) {
   if (!areaA || !areaB) return null;
 
-  const ratio = occupancyData[corridor.id] || 0;
+  const running = simulationStatus === 'running' || simulationStatus === 'stopped';
+  const ratio = running ? (occupancyData[corridor.id] || 0) : 0;
   const hazard = edgeMetric?.hazard || 0;
 
   // Determine color and thickness
@@ -197,7 +203,7 @@ function CorridorEdge({ corridor, areaA, areaB, isSelected, onSelect, mode, occu
     } else if (ratio >= 0.5) {
       strokeColor = '#f59e0b'; glowColor = 'rgba(245,158,11,0.4)'; strokeWidth = 6 + ratio * 4;
     } else {
-      strokeColor = '#22c55e'; glowColor = 'rgba(34,197,94,0.3)'; strokeWidth = 4 + ratio * 4;
+      strokeColor = running ? '#22c55e' : '#94a3b8'; glowColor = running ? 'rgba(34,197,94,0.3)' : 'transparent'; strokeWidth = running ? 4 + ratio * 4 : 4;
     }
   } else {
     strokeColor = isSelected ? '#3b82f6' : '#94a3b8';
@@ -211,12 +217,12 @@ function CorridorEdge({ corridor, areaA, areaB, isSelected, onSelect, mode, occu
   const len = Math.sqrt(dx * dx + dy * dy) || 1;
   const nx = dx / len;
   const ny = dy / len;
-  const gap = AREA_RADIUS + 2;
-
-  const x1 = areaA.x + nx * gap;
-  const y1 = areaA.y + ny * gap;
-  const x2 = areaB.x - nx * gap;
-  const y2 = areaB.y - ny * gap;
+  const start = nodeBoundaryPoint(areaA, nx, ny);
+  const end = nodeBoundaryPoint(areaB, -nx, -ny);
+  const x1 = start.x;
+  const y1 = start.y;
+  const x2 = end.x;
+  const y2 = end.y;
   const midX = (x1 + x2) / 2;
   const midY = (y1 + y2) / 2;
 
@@ -249,7 +255,7 @@ function CorridorEdge({ corridor, areaA, areaB, isSelected, onSelect, mode, occu
       )}
 
       {/* Fill ratio label in view mode */}
-      {mode === 'view' && len > 60 && !isBlocked && (
+      {mode === 'view' && running && len > 60 && !isBlocked && (
         <Group x={midX} y={midY}>
           <Rect x={-20} y={-11} width={40} height={22} fill="rgba(15,23,42,0.85)" cornerRadius={6} />
           <Text
@@ -386,11 +392,11 @@ function DeviceMarker({ device, area, index, liveState }) {
 
 export default function MapCanvas({
   mode, editTool,
-  areas, setAreas,
+  areas, onAreaUpdate,
   corridors, crossFloorCorridors, allAreas,
   selectedItem, onSelectItem,
   onAddArea, onAddCorridor,
-  occupancyData, incidentData, edgeMetrics, devices, guidanceState, backgroundImage, onUpdateBackgroundImage
+  occupancyData, incidentData, edgeMetrics, simulationStatus, devices, guidanceState, backgroundImage, onUpdateBackgroundImage
 }) {
   const [pendingStart, setPendingStart] = useState(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -436,7 +442,8 @@ export default function MapCanvas({
     };
 
     let direction = e.evt.deltaY > 0 ? -1 : 1;
-    const newScale = direction > 0 ? oldScale * scaleBy : oldScale / scaleBy;
+    const requestedScale = direction > 0 ? oldScale * scaleBy : oldScale / scaleBy;
+    const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, requestedScale));
 
     const nextPos = {
       x: pointer.x - mousePointTo.x * newScale,
@@ -482,6 +489,37 @@ export default function MapCanvas({
       onAddCorridor(pendingStart.id, area.id);
       setPendingStart(null);
     }
+  };
+
+  const setViewport = (scale, position) => {
+    const nextScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale));
+    stagePosRef.current = position;
+    setStageScale(nextScale);
+    setStagePos(position);
+  };
+
+  const zoomAtCenter = (factor) => {
+    const nextScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, stageScale * factor));
+    const centerX = stageSize.width / 2;
+    const centerY = stageSize.height / 2;
+    const worldX = (centerX - stagePosRef.current.x) / stageScale;
+    const worldY = (centerY - stagePosRef.current.y) / stageScale;
+    setViewport(nextScale, { x: centerX - worldX * nextScale, y: centerY - worldY * nextScale });
+  };
+
+  const fitToMap = () => {
+    if (!areas.length) return setViewport(1, { x: 0, y: 0 });
+    const xs = areas.map(area => area.x);
+    const ys = areas.map(area => area.y);
+    const padding = 100;
+    const minX = Math.min(...xs) - padding;
+    const maxX = Math.max(...xs) + padding;
+    const minY = Math.min(...ys) - padding;
+    const maxY = Math.max(...ys) + padding;
+    const width = Math.max(1, maxX - minX);
+    const height = Math.max(1, maxY - minY);
+    const scale = Math.min(stageSize.width / width, stageSize.height / height, 1.5);
+    setViewport(scale, { x: (stageSize.width - width * scale) / 2 - minX * scale, y: (stageSize.height - height * scale) / 2 - minY * scale });
   };
 
   // Compute cross-floor labels for staircase areas
@@ -568,7 +606,7 @@ export default function MapCanvas({
   if (editTool === 'select' || mode === 'view') cursor = 'grab';
 
   return (
-    <div ref={containerRef} style={{ cursor, width: '100%', height: '100%' }}>
+    <div ref={containerRef} className="relative" style={{ cursor, width: '100%', height: '100%' }}>
       <Stage
         ref={stageRef}
         width={stageSize.width}
@@ -622,6 +660,7 @@ export default function MapCanvas({
                 mode={mode}
                 occupancyData={occupancyData}
                 edgeMetric={edgeMetrics?.[corridor.id]}
+                simulationStatus={simulationStatus}
               />
             );
           })}
@@ -682,10 +721,7 @@ export default function MapCanvas({
               crossFloorLabels={getCrossFloorLabels(area)}
               stairCongestion={getStairCongestion(area)}
               onSelect={() => onSelectItem({ type: 'area', data: area })}
-              onChange={(updated) => {
-                setAreas(areas.map(a => a.id === updated.id ? updated : a));
-                onSelectItem({ type: 'area', data: updated });
-              }}
+              onChange={(updated) => onAreaUpdate?.(updated)}
               onStartCorridor={handleAreaStartCorridor}
             />
           ))}
@@ -703,6 +739,13 @@ export default function MapCanvas({
         </Layer>
       </Stage>
 
+      <div className="absolute right-4 top-4 flex flex-col gap-1 rounded-xl border border-slate-700 bg-slate-950/90 p-1.5 shadow-xl">
+        <button type="button" onClick={() => zoomAtCenter(1.2)} aria-label="Phóng to bản đồ" className="map-control">+</button>
+        <button type="button" onClick={() => zoomAtCenter(1 / 1.2)} aria-label="Thu nhỏ bản đồ" className="map-control">−</button>
+        <button type="button" onClick={fitToMap} aria-label="Căn vừa sơ đồ" className="map-control map-control-fit">Fit</button>
+        <button type="button" onClick={() => setViewport(1, { x: 0, y: 0 })} aria-label="Đặt lại góc nhìn" className="map-control map-control-fit">1:1</button>
+      </div>
+
       {/* Pending start hint */}
       {pendingStart && (
         <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-green-600 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg pointer-events-none">
@@ -711,8 +754,8 @@ export default function MapCanvas({
       )}
       
       {/* Zoom / Pan Instructions overlay */}
-      <div className="absolute bottom-4 left-4 bg-white/80 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-500 shadow-sm pointer-events-none">
-        Cuộn chuột để Thu/Phóng • Kéo thả nền để Di chuyển
+      <div className="absolute bottom-4 left-4 bg-slate-950/90 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-700 text-xs text-slate-300 shadow-sm pointer-events-none">
+        Cuộn chuột để thu/phóng · Kéo nền để di chuyển · {Math.round(stageScale * 100)}%
       </div>
     </div>
   );

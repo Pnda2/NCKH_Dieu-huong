@@ -92,6 +92,17 @@ class GuidanceController:
         except (TypeError, ValueError):
             return 1.2
 
+    @staticmethod
+    def _occupancy_ratio(value):
+        if isinstance(value, dict):
+            if value.get("status") in {"UNKNOWN", "STALE"}:
+                return 1.0
+            value = value.get("filtered_k", value.get("measured_k", 1.0))
+        try:
+            return max(0.0, min(1.0, float(value)))
+        except (TypeError, ValueError):
+            return 1.0
+
     def _receiving_capacity(self, edge_id, occupancy):
         edge = self.edge_map.get(edge_id, {})
         width = self._edge_width(edge_id)
@@ -105,7 +116,7 @@ class GuidanceController:
             or area_a.get("floor", 1) != area_b.get("floor", 1)
         )
         type_factor = 0.65 if is_stair_connection else 1.0
-        return width * max(0.0, 1.0 - float(occupancy)) * type_factor
+        return width * max(0.0, 1.0 - self._occupancy_ratio(occupancy)) * type_factor
 
     @staticmethod
     def _speaker_command(direction):
@@ -262,29 +273,29 @@ class GuidanceController:
             options = [
                 option
                 for option in route_options.get(area_id, [])
-                if option[1] not in blocked_edges
+                if option["edge_id"] not in blocked_edges
             ]
             if options:
                 sorted_options = sorted(
-                    options, key=lambda option: option[2], reverse=True
+                    options, key=lambda option: option.get("share", 0), reverse=True
                 )[:2]
-                route_total = sum(option[2] for option in sorted_options)
+                route_total = sum(option.get("share", 0) for option in sorted_options)
                 routes = [
                     {
-                        "next_area": neighbour,
-                        "edge_id": route_edge_id,
-                        "probability": round(probability / route_total, 3),
-                        "k": round(edge_occupancy.get(route_edge_id, 0.0), 3),
-                        "widthMeters": self._edge_width(route_edge_id),
+                        "next_area": option["next_area"],
+                        "edge_id": option["edge_id"],
+                        "probability": round(option.get("share", 0) / route_total, 3),
+                        "k": round(self._occupancy_ratio(edge_occupancy.get(option["edge_id"], 0.0)), 3),
+                        "widthMeters": self._edge_width(option["edge_id"]),
                         "receivingCapacity": round(
                             self._receiving_capacity(
-                                route_edge_id,
-                                edge_occupancy.get(route_edge_id, 0.0),
+                                option["edge_id"],
+                                edge_occupancy.get(option["edge_id"], 0.0),
                             ),
                             3,
                         ),
                     }
-                    for neighbour, route_edge_id, probability in sorted_options
+                    for option in sorted_options
                 ]
                 primary = routes[0]
                 decisions[area_id] = {

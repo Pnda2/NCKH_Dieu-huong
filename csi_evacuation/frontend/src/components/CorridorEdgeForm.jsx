@@ -30,7 +30,7 @@ export default function CorridorEdgeForm({ corridor, areas, onChange, onDelete }
   const handleLengthChange = (e) => {
     const val = Math.max(1, Number(e.target.value));
     setLength(val);
-    onChange({ ...corridor, length: val });
+    onChange({ ...corridor, length: val, lengthEstimated: false });
   };
 
   const handleInitialOccupancyChange = (e) => {
@@ -106,9 +106,11 @@ export default function CorridorEdgeForm({ corridor, areas, onChange, onDelete }
         <p className="text-xs text-slate-500 mt-1">Để trống để mô phỏng ước lượng từ chiều rộng; đây không phải số người đếm chính xác.</p>
       </div>
 
-      {/* Length */}
-      <div>
-        <label className="block text-slate-400 text-xs mb-1.5 font-medium">Chiều dài (m)</label>
+      {/* Operational metrics */}
+      <div className="border-t border-slate-600 pt-3">
+        <label className="block text-slate-300 text-xs mb-1.5 font-semibold">Thông số vận hành</label>
+        <p className="mb-3 text-xs text-slate-500">Các số đo này phục vụ mô phỏng; không thay đổi vị trí hoặc chiều dài sơ đồ 2D/3D.</p>
+        <label className="block text-slate-400 text-xs mb-1.5 font-medium">Chiều dài đo được (m)</label>
         <div className="flex items-center gap-2">
           <input
             type="range"
@@ -127,6 +129,7 @@ export default function CorridorEdgeForm({ corridor, areas, onChange, onDelete }
           />
           <span className="text-slate-400 text-xs">m</span>
         </div>
+        {corridor.lengthEstimated && <p className="mt-1 text-xs text-amber-400">⚠ Đang giả định 10 m. Hãy nhập số đo thực tế.</p>}
       </div>
 
       {/* Usable width */}
@@ -146,7 +149,7 @@ export default function CorridorEdgeForm({ corridor, areas, onChange, onDelete }
           <span className="text-slate-400 text-xs">m</span>
         </div>
         <p className="text-xs text-slate-500 mt-1">
-          Nhập độ rộng tại đoạn hẹp nhất của hành lang.
+          Nhập độ rộng tại đoạn hẹp nhất; sơ đồ chỉ hiển thị tượng trưng.
         </p>
         {corridor.widthEstimated && (
           <p className="text-xs text-amber-400 mt-1">

@@ -4,9 +4,13 @@ import MapCanvas from './components/MapCanvas';
 import AreaForm from './components/AreaForm';
 import CorridorEdgeForm from './components/CorridorEdgeForm';
 import DeviceRegistryForm from './components/DeviceRegistryForm';
+import { corridorDefaults, linkStairwell, pruneStairwells, syncStairwellUpdate, updateStairwellLanding } from './components/stairwells';
+
+const BuildingScene3D = React.lazy(() => import('./components/BuildingScene3D'));
 
 const SERVER_URL = import.meta.env.VITE_WIEVAC_API_URL || 'http://localhost:3001';
 const DEFAULT_CORRIDOR_WIDTH_METERS = 1.2;
+const DEFAULT_SCENE_3D = { planUnitsPerMeter: 40, floorHeightMeters: 3.2, floorExplodeMeters: 2, gridSizeMeters: 1 };
 
 const normalizeCorridor = (corridor) => {
   const parsedWidth = Number(corridor.widthMeters);
@@ -15,15 +19,18 @@ const normalizeCorridor = (corridor) => {
     ...corridor,
     widthMeters: hasValidWidth ? parsedWidth : DEFAULT_CORRIDOR_WIDTH_METERS,
     widthEstimated: hasValidWidth ? Boolean(corridor.widthEstimated) : true,
+    lengthEstimated: corridor.lengthEstimated === undefined ? true : Boolean(corridor.lengthEstimated),
   };
 };
 
 function App() {
   const [mode, setMode] = useState('view');
+  const [viewportMode, setViewportMode] = useState('2d');
   const [editTool, setEditTool] = useState('select'); // 'select' | 'addArea' | 'addCorridor'
 
   const [areas, setAreas] = useState([]);       // Nodes
   const [corridors, setCorridors] = useState([]); // Edges
+  const [stairwells, setStairwells] = useState([]);
   const [devices, setDevices] = useState([]);
 
   const [selectedItem, setSelectedItem] = useState(null); // { type: 'area'|'corridor', data: {...} }
@@ -40,10 +47,18 @@ function App() {
   const [densityStep, setDensityStep] = useState(5);
   const hazardRequestRef = useRef(null);
   const [guidanceState, setGuidanceState] = useState({ decisions: {}, devices: [] });
+  const [mapLoadState, setMapLoadState] = useState('loading');
+  const [notice, setNotice] = useState(null);
+  const [pendingFloorDelete, setPendingFloorDelete] = useState(null);
 
   const [floors, setFloors] = useState([1]);
   const [activeFloor, setActiveFloor] = useState(1);
   const [floorImages, setFloorImages] = useState({});
+  const [scene3d, setScene3d] = useState(DEFAULT_SCENE_3D);
+
+  const notify = (message, tone = 'info') => {
+    setNotice({ message, tone, id: Date.now() });
+  };
 
   useEffect(() => {
     fetch(`${SERVER_URL}/api/map`)
@@ -51,14 +66,20 @@ function App() {
       .then(data => {
         if (data?.areas) setAreas(data.areas);
         if (data?.edges) setCorridors(data.edges.map(normalizeCorridor));
+        if (data?.stairwells) setStairwells(data.stairwells);
         if (data?.devices) setDevices(data.devices);
         if (data?.floorImages) setFloorImages(data.floorImages);
+        if (data?.scene3d) setScene3d({ ...DEFAULT_SCENE_3D, ...data.scene3d });
         if (data?.floors?.length > 0) {
           setFloors(data.floors);
           setActiveFloor(data.floors[0]);
         }
+        setMapLoadState('ready');
       })
-      .catch(err => console.error('Failed to load map:', err));
+      .catch(() => {
+        setMapLoadState('error');
+        notify('Không thể tải cấu hình bản đồ. Kiểm tra kết nối backend.', 'danger');
+      });
 
     const newSocket = io(SERVER_URL);
     newSocket.on('connect', () => setIsConnected(true));
@@ -89,18 +110,31 @@ function App() {
     });
     newSocket.on('simulation_state', (data) => {
       setSimulationState(data);
+      if (data?.status === 'running') {
+        setMode('view');
+        setEditTool('select');
+      }
       if (data?.status === 'idle') {
         setOccupancyData(data.edgeOccupancy || {});
         setGuidanceState({ decisions: {}, devices: [] });
       }
     });
     newSocket.on('occupancy_adjust_ack', (data) => {
-      if (data?.success === false) console.error('Occupancy adjustment rejected:', data.error);
+      if (data?.success === false) notify(data.error || 'Yêu cầu điều chỉnh tải bị từ chối.', 'danger');
     });
     newSocket.on('guidance_state', (data) => setGuidanceState(data));
+    newSocket.on('occupancy_state', (data) => {
+      if (data?.edgeMetrics) setSimulationState(prev => ({ ...prev, edgeMetrics: data.edgeMetrics }));
+    });
 
     return () => newSocket.close();
   }, []);
+
+  useEffect(() => {
+    if (!notice) return undefined;
+    const timer = setTimeout(() => setNotice(null), 4500);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   // ─── Area (Node) Handlers ─────────────────────────
   const handleAddArea = (x, y) => {
@@ -108,6 +142,7 @@ function App() {
       id: `a_${Date.now()}`,
       name: `Khu vực ${areas.length + 1}`,
       type: 'room',
+      visualKind: 'room',
       x,
       y,
       floor: activeFloor,
@@ -118,12 +153,26 @@ function App() {
   };
 
   const handleUpdateArea = (updatedArea) => {
+    if (updatedArea.stairwellId) {
+      const synced = syncStairwellUpdate(areas, stairwells, updatedArea);
+      setAreas(synced.areas);
+      setStairwells(synced.stairwells);
+      setSelectedItem({ type: 'area', data: synced.areas.find((area) => area.id === updatedArea.id) });
+      return;
+    }
     setAreas(prev => prev.map(a => a.id === updatedArea.id ? updatedArea : a));
     setSelectedItem({ type: 'area', data: updatedArea });
   };
 
+  const handleUpdateStairwellLanding = (stairwellId, areaId, entranceSide) => {
+    setStairwells((previous) => updateStairwellLanding(previous, stairwellId, areaId, entranceSide));
+  };
+
   const handleDeleteArea = (areaId) => {
-    setAreas(prev => prev.filter(a => a.id !== areaId));
+    const nextAreas = areas.filter(a => a.id !== areaId);
+    const pruned = pruneStairwells(nextAreas, stairwells);
+    setAreas(pruned.areas);
+    setStairwells(pruned.stairwells);
     setCorridors(prev => prev.filter(c => c.areaA_id !== areaId && c.areaB_id !== areaId));
     setDevices(prev => prev.filter(device => device.area_id !== areaId));
     setSelectedItem(null);
@@ -144,15 +193,18 @@ function App() {
     const newCorridor = {
       id: `e_${Date.now()}`,
       name: `${areaA.name} – ${areaB.name}`,
-      length: 10,
-      widthMeters: DEFAULT_CORRIDOR_WIDTH_METERS,
-      widthEstimated: true,
+      ...corridorDefaults(),
       initialOccupancy: 0.5,
       flowCapacity: undefined,
       areaA_id,
       areaB_id,
     };
     setCorridors(prev => [...prev, newCorridor]);
+    if (areaA.type === 'stairs' && areaB.type === 'stairs' && areaA.floor !== areaB.floor) {
+      const linked = linkStairwell(areas, stairwells, areaA_id, areaB_id, () => `sw_${Date.now()}`);
+      setAreas(linked.areas);
+      setStairwells(linked.stairwells);
+    }
     setSelectedItem({ type: 'corridor', data: newCorridor });
   };
 
@@ -203,15 +255,18 @@ function App() {
       const newCorridor = {
         id: `e_${Date.now()}_${Math.floor(Math.random()*1000)}`,
         name: `${areaA.name} – ${areaB.name}`,
-        length: 10,
-        widthMeters: DEFAULT_CORRIDOR_WIDTH_METERS,
-        widthEstimated: true,
+        ...corridorDefaults(),
         initialOccupancy: 0.5,
         flowCapacity: undefined,
         areaA_id: areaId1,
         areaB_id: areaId2,
       };
       setCorridors(prev => [...prev, newCorridor]);
+      if (areaA.type === 'stairs' && areaB.type === 'stairs' && areaA.floor !== areaB.floor) {
+        const linked = linkStairwell(areas, stairwells, areaId1, areaId2, () => `sw_${Date.now()}`);
+        setAreas(linked.areas);
+        setStairwells(linked.stairwells);
+      }
     }
   };
 
@@ -222,21 +277,28 @@ function App() {
     setActiveFloor(newFloorNum);
   };
 
-  const handleDeleteFloor = (floorNum) => {
-    if (!window.confirm(`Xóa Tầng ${floorNum} và tất cả khu vực, hành lang trên đó?`)) return;
+  const handleDeleteFloor = (floorNum, confirmed = false) => {
+    if (!confirmed) {
+      setPendingFloorDelete(floorNum);
+      return;
+    }
     const remaining = floors.filter(f => f !== floorNum);
     const nextFloors = remaining.length === 0 ? [1] : remaining;
     setFloors(nextFloors);
     setActiveFloor(nextFloors[0]);
 
     const areaIdsOnFloor = areas.filter(a => a.floor === floorNum).map(a => a.id);
-    setAreas(prev => prev.filter(a => a.floor !== floorNum));
+    const nextAreas = areas.filter(a => a.floor !== floorNum);
+    const pruned = pruneStairwells(nextAreas, stairwells);
+    setAreas(pruned.areas);
+    setStairwells(pruned.stairwells);
     setCorridors(prev => prev.filter(c =>
       !areaIdsOnFloor.includes(c.areaA_id) && !areaIdsOnFloor.includes(c.areaB_id)
     ));
     setDevices(prev => prev.filter(device => !areaIdsOnFloor.includes(device.area_id)));
     setFloorImages(prev => { const n = { ...prev }; delete n[floorNum]; return n; });
     setSelectedItem(null);
+    setPendingFloorDelete(null);
   };
 
   const handleImageUpload = (e) => {
@@ -261,11 +323,17 @@ function App() {
         devices,
         floorImages,
         floors,
+        schemaVersion: 3,
+        scene3d,
+        stairwells,
       }),
     })
       .then(res => res.json())
-      .then(data => { if (data.success) alert('Lưu bản đồ thành công và đã gửi xuống Pi 5!'); })
-      .catch(err => console.error('Failed to save map:', err));
+      .then(data => {
+        if (data.success) notify('Đã lưu cấu hình bản đồ và gửi xuống Pi 5.', 'success');
+        else notify(data.error || 'Không thể lưu bản đồ.', 'danger');
+      })
+      .catch(() => notify('Không thể lưu bản đồ. Backend không phản hồi.', 'danger'));
   };
 
   const handleStartSimulation = () => {
@@ -276,13 +344,20 @@ function App() {
       .then(async res => {
         const data = await res.json();
         if (!res.ok || data.error) throw new Error(data.error || 'Không thể chạy mô phỏng');
+        setSimulationState(prev => ({ ...prev, status: 'running' }));
+        setMode('view');
+        setEditTool('select');
       })
-      .catch(err => alert(err.message));
+      .catch(err => notify(err.message, 'danger'));
   };
 
   const handleStopSimulation = () => {
     fetch(`${SERVER_URL}/api/simulate/stop`, { method: 'POST' })
-      .catch(err => console.error('Failed to stop simulation:', err));
+      .then(async res => {
+        if (!res.ok) throw new Error('Không thể dừng mô phỏng');
+        setSimulationState(prev => ({ ...prev, status: 'stopped' }));
+      })
+      .catch(() => notify('Không thể dừng mô phỏng. Backend không phản hồi.', 'danger'));
   };
 
   const handleResetSimulation = () => {
@@ -290,8 +365,10 @@ function App() {
       .then(async res => {
         const data = await res.json();
         if (!res.ok || data.error) throw new Error(data.error || 'Không thể reset mô phỏng');
+        setOccupancyData({});
+        setSimulationState(prev => ({ ...prev, status: 'idle', edgeOccupancy: {}, edgeMetrics: {} }));
       })
-      .catch(err => alert(err.message));
+      .catch(err => notify(err.message, 'danger'));
   };
 
   const handleAdjustOccupancy = (edgeId, deltaPercent) => {
@@ -305,7 +382,7 @@ function App() {
         const data = await res.json();
         if (!res.ok || data.error) throw new Error(data.error || 'Không thể điều chỉnh mật độ');
       })
-      .catch(err => alert(err.message));
+      .catch(err => notify(err.message, 'danger'));
   };
 
   // ─── Derived state ────────────────────────────────
@@ -321,7 +398,7 @@ function App() {
           const data = await res.json();
           if (!res.ok || data.error) throw new Error(data.error || 'Khong the cap nhat nguy co');
         })
-        .catch(err => alert(err.message));
+        .catch(err => notify(err.message, 'danger'));
     }, 250);
   };
 
@@ -366,7 +443,23 @@ function App() {
   }[simulationState.status] || simulationState.status;
 
   return (
-    <div className="h-screen bg-slate-900 flex flex-col overflow-hidden" style={{ fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
+    <div className="eoc-shell h-screen bg-slate-900 flex flex-col overflow-hidden" style={{ fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
+      {notice && (
+        <div role="status" className={`fixed z-50 right-5 top-5 max-w-sm rounded-xl border px-4 py-3 text-sm shadow-2xl ${
+          notice.tone === 'danger' ? 'border-red-400/50 bg-red-950 text-red-100' : notice.tone === 'success' ? 'border-emerald-400/50 bg-emerald-950 text-emerald-100' : 'border-cyan-400/50 bg-slate-900 text-cyan-50'
+        }`}>
+          <div className="flex items-start gap-3"><span className="font-semibold">{notice.tone === 'danger' ? 'Cảnh báo' : notice.tone === 'success' ? 'Đã lưu' : 'WiEvac'}</span><span className="flex-1">{notice.message}</span><button type="button" aria-label="Đóng thông báo" onClick={() => setNotice(null)} className="text-current/80 hover:text-white">×</button></div>
+        </div>
+      )}
+      {pendingFloorDelete !== null && (
+        <div role="dialog" aria-modal="true" aria-labelledby="delete-floor-title" className="fixed inset-0 z-50 grid place-items-center bg-slate-950/75 p-5">
+          <div className="w-full max-w-md rounded-2xl border border-slate-600 bg-slate-900 p-5 shadow-2xl">
+            <h2 id="delete-floor-title" className="text-base font-semibold text-white">Xóa tầng {pendingFloorDelete}?</h2>
+            <p className="mt-2 text-sm text-slate-300">Tất cả khu vực, hành lang, thiết bị và ảnh nền trên tầng này sẽ bị xóa khỏi cấu hình hiện tại.</p>
+            <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setPendingFloorDelete(null)} className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800">Hủy</button><button type="button" onClick={() => handleDeleteFloor(pendingFloorDelete, true)} className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-500">Xóa tầng</button></div>
+          </div>
+        </div>
+      )}
 
       {/* ─── Header ─── */}
       <header className="bg-slate-800 border-b border-slate-700 px-5 py-2.5 flex justify-between items-center flex-shrink-0">
@@ -387,11 +480,26 @@ function App() {
             }`}
           >🔍 Giám sát</button>
           <button
-            onClick={() => setMode('edit')}
+            onClick={() => {
+              if (simulationState.status === 'running') {
+                notify('Dừng mô phỏng trước khi chỉnh sửa cấu trúc tòa nhà.', 'danger');
+                return;
+              }
+              setMode('edit');
+            }}
             className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
               mode === 'edit' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'
             }`}
           >✏️ Thiết kế</button>
+        </div>
+
+        <div className="flex items-center gap-1 bg-slate-700 p-1 rounded-xl">
+          {['2d', '3d'].map(view => (
+            <button key={view} type="button" onClick={() => setViewportMode(view)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${viewportMode === view ? 'bg-cyan-700 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`}>
+              {view === '2d' ? '2D' : '3D khối'}
+            </button>
+          ))}
         </div>
 
         <div className="flex items-center gap-2">
@@ -515,14 +623,43 @@ function App() {
 
           {/* Canvas */}
           <div className="flex-1 relative overflow-hidden">
-            <MapCanvas
+            {mapLoadState === 'loading' ? (
+              <div className="h-full grid place-items-center bg-slate-950 text-slate-300"><div className="text-center"><div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" /><p className="font-semibold">Đang tải sơ đồ vận hành…</p><p className="mt-1 text-sm text-slate-500">Đồng bộ cấu hình từ backend</p></div></div>
+            ) : mapLoadState === 'error' ? (
+              <div className="h-full grid place-items-center bg-slate-950 px-6 text-center text-slate-300"><div><p className="text-lg font-semibold text-red-300">Không thể kết nối backend</p><p className="mt-2 max-w-md text-sm text-slate-400">Dashboard vẫn hiển thị khi máy chủ sẵn sàng. Kiểm tra VITE_WIEVAC_API_URL và trạng thái backend rồi tải lại trang.</p><button type="button" onClick={() => window.location.reload()} className="mt-4 rounded-lg bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-600">Tải lại</button></div></div>
+            ) : viewportMode === '3d' ? (
+              <React.Suspense fallback={<div className="h-full grid place-items-center bg-slate-950 text-slate-300"><div className="text-center"><div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" /><p className="font-semibold">Đang tải không gian 3D…</p></div></div>}>
+                <BuildingScene3D
+                  areas={areas}
+                  corridors={corridors}
+                  stairwells={stairwells}
+                  activeFloor={activeFloor}
+                  scene={scene3d}
+                  selectedItem={selectedItem}
+                  onSelectItem={setSelectedItem}
+                  onAddArea={handleAddArea}
+                  onUpdateArea={handleUpdateArea}
+                  onAddCorridor={handleAddCorridor}
+                  editTool={editTool}
+                  editable={mode === 'edit' && simulationState.status !== 'running'}
+                  occupancyData={mapOccupancyData}
+                  edgeMetrics={simulationState.edgeMetrics || {}}
+                  incidentData={incidentData}
+                  guidanceState={guidanceState}
+                  simulationStatus={simulationState.status}
+                  onSwitchTo2d={() => {
+                    setViewportMode('2d');
+                    notify('Đã chuyển về chế độ 2D.', 'info');
+                  }}
+                />
+              </React.Suspense>
+            ) : currentFloorAreas.length === 0 ? (
+              <div className="h-full grid place-items-center bg-slate-950 px-6 text-center text-slate-300"><div><p className="text-lg font-semibold">Tầng {activeFloor} chưa có khu vực</p><p className="mt-2 text-sm text-slate-500">{mode === 'edit' ? 'Chọn công cụ “Khu vực”, sau đó nhấp vào bản đồ để bắt đầu thiết kế.' : 'Chuyển sang chế độ Thiết kế để thêm khu vực và hành lang.'}</p></div></div>
+            ) : <MapCanvas
               mode={mode}
               editTool={editTool}
               areas={currentFloorAreas}
-              setAreas={(updated) => {
-                const others = areas.filter(a => (a.floor || 1) !== activeFloor);
-                setAreas([...others, ...updated]);
-              }}
+              onAreaUpdate={handleUpdateArea}
               corridors={currentFloorCorridors}
               crossFloorCorridors={crossFloorCorridors}
               allAreas={areas}
@@ -533,11 +670,12 @@ function App() {
               occupancyData={mapOccupancyData}
               incidentData={incidentData}
               edgeMetrics={simulationState.edgeMetrics || {}}
+              simulationStatus={simulationState.status}
               devices={devices}
               guidanceState={guidanceState}
               backgroundImage={normalizedBgImage}
               onUpdateBackgroundImage={(updated) => setFloorImages(prev => ({ ...prev, [activeFloor]: updated }))}
-            />
+            />}
 
             {/* Legend */}
             {mode === 'view' && (
@@ -568,9 +706,11 @@ function App() {
                   <AreaForm
                     area={selectedItem.data}
                     allAreas={areas}
+                    stairwells={stairwells}
                     corridors={corridors}
                     onToggleCorridor={handleToggleCorridor}
                     onChange={handleUpdateArea}
+                    onUpdateLanding={handleUpdateStairwellLanding}
                     onDelete={() => handleDeleteArea(selectedItem.data.id)}
                   />
                   <DeviceRegistryForm
@@ -645,15 +785,11 @@ function App() {
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Thời gian</div><div className="text-white font-bold">{formatDuration(simulationState.elapsedSeconds)}</div></div>
-                  <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">CSI k(e) TB</div><div className="text-blue-400 font-bold">{Math.round((simulationState.averageOccupancy || 0) * 100)}%</div></div>
                   <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Hành lang còn tải</div><div className="text-yellow-400 font-bold">{simulationState.occupiedCorridors || 0}</div></div>
                   <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Hành lang mắc kẹt</div><div className="text-red-400 font-bold">{simulationState.trappedCorridors?.length || 0}</div></div>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-xs mt-2">
-                  <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Optimizer</div><div className="text-cyan-300 font-bold">{simulationState.optimizerStatus || 'fallback'}</div></div>
-                  <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Sai số bảo toàn</div><div className="text-emerald-300 font-bold">{Number(simulationState.conservationError || 0).toFixed(3)}</div></div>
+                <div className="grid grid-cols-1 gap-2 text-xs mt-2">
                   <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Lối thoát khả dụng</div><div className="text-emerald-400 font-bold">{simulationState.availableExits ?? '–'}</div></div>
-                  <div className="bg-slate-800/60 rounded p-2"><div className="text-slate-500">Khu vực nguy hiểm</div><div className="text-orange-400 font-bold">{simulationState.hazardousCorridors ?? 0}</div></div>
                 </div>
                 {devices.length > 0 && (
                   <div className="mt-2 flex items-center justify-between text-xs bg-slate-800/60 rounded p-2">
@@ -813,14 +949,14 @@ function App() {
                         
                       const toggleIncident = () => {
                         const endpoint = isBlocked ? '/api/incident/clear' : '/api/incident';
-                        fetch(`http://localhost:3001${endpoint}`, {
+                        fetch(`${SERVER_URL}${endpoint}`, {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ 
                             type: selectedItem.type === 'corridor' ? 'edge' : 'exit', 
                             target_id: selectedItem.data.id 
                           })
-                        }).catch(console.error);
+                        }).catch(() => notify('Không thể cập nhật trạng thái sự cố.', 'danger'));
                       };
                       
                       return (

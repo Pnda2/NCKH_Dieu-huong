@@ -33,11 +33,15 @@ class CSILayer:
         value = self._valid(measured_k)
         previous = self.states.get(edge_id)
         if value is None:
-            return {
+            state = {
                 **(previous or {"measured_k": None, "filtered_k": None, "confidence": 0.0}),
                 "status": "UNKNOWN",
                 "last_updated": previous.get("last_updated", 0) if previous else 0,
             }
+            # Keep the failed measurement visible.  Returning an UNKNOWN value
+            # without storing it would let a previous OK value appear valid.
+            self.states[edge_id] = state
+            return state
         filtered = value if not previous or previous.get("filtered_k") is None else (
             self.ema_alpha * value + (1.0 - self.ema_alpha) * previous["filtered_k"]
         )
@@ -50,6 +54,8 @@ class CSILayer:
         state = self.states.get(edge_id)
         if not state:
             return {"measured_k": None, "filtered_k": None, "confidence": 0.0, "last_updated": 0, "status": "UNKNOWN"}
+        if state.get("status") == "UNKNOWN":
+            return dict(state)
         if now - state["last_updated"] > self.stale_seconds:
             return {**state, "status": "STALE"}
         return dict(state)

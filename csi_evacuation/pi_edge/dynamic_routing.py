@@ -342,8 +342,8 @@ class DynamicEvacuationRouter:
         for target, edge_id in planner.successors.get(source, []):
             total_cost = self._cost_of(edge_id) + planner.g.get(target, INF)
             if target != self.VIRTUAL_EXIT and math.isfinite(total_cost):
-                candidates.append((target, edge_id, total_cost))
-        candidates.sort(key=lambda item: (item[2], item[0], item[1]))
+                candidates.append({"next_area": target, "edge_id": edge_id, "cost": total_cost})
+        candidates.sort(key=lambda item: (item["cost"], item["next_area"], item["edge_id"]))
         return {
             "path": path,
             "edge_ids": edge_ids,

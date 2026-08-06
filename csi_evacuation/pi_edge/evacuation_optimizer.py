@@ -23,8 +23,22 @@ class OptimizerError(RuntimeError):
     pass
 
 
-def fallback_routes(candidates: dict[str, list[tuple[str, str, float]]]) -> dict[str, list[tuple[str, str, float]]]:
-    return {area: [(items[0][0], items[0][1], 1.0)] if items else [] for area, items in candidates.items()}
+def fallback_routes(candidates: dict[str, list[dict]]) -> dict[str, list[dict]]:
+    """Choose the lowest-cost D* Lite candidate when no allocation is available."""
+    result = {}
+    for area, items in candidates.items():
+        if not items:
+            result[area] = []
+            continue
+        best = items[0]
+        result[area] = [{
+            "next_area": best["next_area"],
+            "edge_id": best["edge_id"],
+            "cost": float(best["cost"]),
+            "share": 1.0,
+            "allocated_load": None,
+        }]
+    return result
 
 
 class EvacuationOptimizer:
@@ -39,15 +53,21 @@ class EvacuationOptimizer:
         previous_routes = previous_routes or {}
         variables = []
         for area_id, options in candidates.items():
-            usable = [item for item in options if item[1] not in blocked_edges and math.isfinite(item[2])][:2]
-            for target, edge_id, cost in usable:
-                variables.append((area_id, target, edge_id, max(0.0, float(cost))))
+            usable = [
+                item for item in options
+                if item["edge_id"] not in blocked_edges and math.isfinite(item["cost"])
+            ][:2]
+            for item in usable:
+                variables.append((area_id, item["next_area"], item["edge_id"], max(0.0, float(item["cost"]))))
         if not variables:
             return {}, "infeasible"
         # Minimize predicted travel, queue pressure, and unnecessary deviations.
         objective = []
         for area, _target, edge, cost in variables:
-            prior = {item[1] for item in previous_routes.get(area, []) if item[2] > 0}
+            prior = {
+                item["edge_id"] for item in previous_routes.get(area, [])
+                if item.get("share", 0) > 0
+            }
             # A large evacuation reward lexicographically prioritizes moving
             # safe load before minimizing travel/route churn.
             objective.append(cost + (self.config.route_change_penalty if prior and edge not in prior else 0.0) - 1_000_000.0)
@@ -64,12 +84,21 @@ class EvacuationOptimizer:
         flows = {}
         for variable, amount in zip(variables, result.x):
             if amount > 1e-8:
-                flows.setdefault(variable[0], []).append((variable[1], variable[2], float(amount)))
+                flows.setdefault(variable[0], []).append((variable[1], variable[2], variable[3], float(amount)))
         routes = {}
         for area, items in flows.items():
-            total = sum(item[2] for item in items)
+            total = sum(item[3] for item in items)
             if total > 0:
-                routes[area] = [(target, edge, value / total) for target, edge, value in sorted(items, key=lambda item: -item[2])[:2]]
+                routes[area] = [
+                    {
+                        "next_area": target,
+                        "edge_id": edge,
+                        "cost": cost,
+                        "share": value / total,
+                        "allocated_load": value,
+                    }
+                    for target, edge, cost, value in sorted(items, key=lambda item: -item[3])[:2]
+                ]
         # Empty sources still get their safe best route for device guidance.
         for area, options in candidates.items():
             routes.setdefault(area, fallback_routes({area: options})[area])

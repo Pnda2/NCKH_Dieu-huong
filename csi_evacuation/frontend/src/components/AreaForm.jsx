@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { visualForArea } from './scene3d';
 
 const TYPE_OPTIONS = [
   { value: 'room',   label: 'Phòng / Khu vực',      icon: '🏠', ring: 'ring-blue-500',   active: 'bg-blue-600 text-white', inactive: 'bg-slate-600 text-slate-300 hover:bg-slate-500' },
@@ -6,7 +7,7 @@ const TYPE_OPTIONS = [
   { value: 'exit',   label: 'Lối thoát khẩn cấp',   icon: '🚪', ring: 'ring-green-500',  active: 'bg-green-600 text-white', inactive: 'bg-slate-600 text-slate-300 hover:bg-slate-500' },
 ];
 
-export default function AreaForm({ area, allAreas, corridors, onToggleCorridor, onChange, onDelete }) {
+export default function AreaForm({ area, allAreas, stairwells, corridors, onToggleCorridor, onChange, onUpdateLanding, onDelete }) {
   const [name, setName] = useState(area.name || '');
 
   useEffect(() => {
@@ -20,10 +21,17 @@ export default function AreaForm({ area, allAreas, corridors, onToggleCorridor, 
   };
 
   const handleTypeChange = (type) => {
-    onChange({ ...area, type });
+    onChange({ ...area, type, visualKind: type === 'room' ? (area.visualKind === 'junction' ? 'junction' : 'room') : type });
   };
 
+  const handleVisualKindChange = (visualKind) => onChange({ ...area, visualKind });
+
   const opt = TYPE_OPTIONS.find(o => o.value === area.type) || TYPE_OPTIONS[0];
+  const visual3d = visualForArea(area);
+  const updateVisual3d = (patch) => onChange({
+    ...area,
+    visual3d: { ...visual3d, ...patch, sizeMode: 'manual' },
+  });
 
   const availableConnections = (allAreas || []).filter(c => {
     if (c.id === area.id) return false;
@@ -37,6 +45,12 @@ export default function AreaForm({ area, allAreas, corridors, onToggleCorridor, 
       if (isAdjacentFloor && c.type === 'stairs') return true;
       return false;
     }
+  });
+  const stairwell = (stairwells || []).find((well) => well.id === area.stairwellId);
+  const landingSide = stairwell?.landingConfigs?.[area.id]?.entranceSide || 'auto';
+  const sameFloorCorridors = (corridors || []).filter((corridor) => {
+    const otherId = corridor.areaA_id === area.id ? corridor.areaB_id : corridor.areaB_id === area.id ? corridor.areaA_id : null;
+    return otherId && allAreas.find((item) => item.id === otherId)?.floor === area.floor;
   });
 
   const isConnected = (targetId) => {
@@ -61,6 +75,17 @@ export default function AreaForm({ area, allAreas, corridors, onToggleCorridor, 
           className="text-red-400 hover:text-red-300 text-xs font-medium px-2 py-1 bg-red-900/30 hover:bg-red-900/50 rounded-lg transition-colors"
         >🗑️ Xóa</button>
       </div>
+
+      {area.type === 'room' && (
+        <div className="pt-3 border-t border-slate-600">
+          <label className="block text-slate-400 text-xs mb-2 font-medium">Vai trò hiển thị</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => handleVisualKindChange('room')} className={`rounded-lg px-2 py-2 text-xs font-semibold transition-colors ${area.visualKind !== 'junction' ? 'bg-blue-600 text-white' : 'bg-slate-600 text-slate-300 hover:bg-slate-500'}`}>▣ Phòng / khu vực</button>
+            <button type="button" onClick={() => handleVisualKindChange('junction')} className={`rounded-lg px-2 py-2 text-xs font-semibold transition-colors ${area.visualKind === 'junction' ? 'bg-teal-600 text-white' : 'bg-slate-600 text-slate-300 hover:bg-slate-500'}`}>● Nút giao hành lang</button>
+          </div>
+          <p className="mt-2 text-[10px] text-slate-400">Nút giao chỉ đổi hình hiển thị; các hành lang và dữ liệu định tuyến vẫn giữ nguyên.</p>
+        </div>
+      )}
 
       {/* Name */}
       <div>
@@ -93,6 +118,32 @@ export default function AreaForm({ area, allAreas, corridors, onToggleCorridor, 
           ))}
         </div>
       </div>
+
+      <div className="pt-3 border-t border-slate-600 space-y-2">
+        <label className="block text-slate-400 text-xs font-medium">Khối 3D</label>
+        {visual3d.sizeMode === 'auto' && <p className="text-[10px] text-cyan-300">Đang dùng kích thước tự cân chỉnh. Sửa một trường để khóa kích thước thủ công.</p>}
+        <div className="grid grid-cols-2 gap-2">
+          <label className="text-[10px] text-slate-400">Rộng (m)<input type="number" min="0.5" step="0.5" value={visual3d.widthMeters} onChange={event => updateVisual3d({ widthMeters: Math.max(0.5, Number(event.target.value) || 0.5) })} className="mt-1 w-full bg-slate-600 text-white rounded px-2 py-1 text-xs border border-slate-500" /></label>
+          <label className="text-[10px] text-slate-400">Sâu (m)<input type="number" min="0.5" step="0.5" value={visual3d.depthMeters} onChange={event => updateVisual3d({ depthMeters: Math.max(0.5, Number(event.target.value) || 0.5) })} className="mt-1 w-full bg-slate-600 text-white rounded px-2 py-1 text-xs border border-slate-500" /></label>
+          <label className="text-[10px] text-slate-400">Cao (m)<input type="number" min="0.5" step="0.1" value={visual3d.heightMeters} onChange={event => updateVisual3d({ heightMeters: Math.max(0.5, Number(event.target.value) || 0.5) })} className="mt-1 w-full bg-slate-600 text-white rounded px-2 py-1 text-xs border border-slate-500" /></label>
+          <label className="text-[10px] text-slate-400">Xoay (°)<input type="number" step="15" value={visual3d.rotationDegrees} onChange={event => updateVisual3d({ rotationDegrees: Number(event.target.value) || 0 })} className="mt-1 w-full bg-slate-600 text-white rounded px-2 py-1 text-xs border border-slate-500" /></label>
+        </div>
+        <label className="flex items-center justify-between text-[10px] text-slate-400">Màu khối<input type="color" value={visual3d.color} onChange={event => updateVisual3d({ color: event.target.value })} className="h-7 w-12 rounded border border-slate-500 bg-slate-600 p-0.5" /></label>
+      </div>
+
+      {stairwell && (
+        <div className="rounded-lg border border-orange-500/40 bg-orange-950/30 p-3 text-xs">
+          <div className="font-semibold text-orange-200">Lõi cầu thang</div>
+          <div className="mt-1 text-orange-100/80">{stairwell.id} · tầng {stairwell.areaIds.map(id => allAreas.find(item => item.id === id)?.floor).filter(Boolean).sort((a, b) => a - b).join(', ')}</div>
+          <p className="mt-2 text-orange-200/70">Vị trí, rộng, sâu và góc xoay được dùng chung cho mọi tầng trong lõi này.</p>
+          <label className="mt-3 block text-orange-100/90">Cổng vào cầu thang
+            <select value={landingSide} onChange={(event) => onUpdateLanding?.(stairwell.id, area.id, event.target.value)} className="mt-1 w-full rounded border border-orange-400/40 bg-slate-800 px-2 py-1 text-xs text-white">
+              <option value="auto">Tự nhận diện từ hành lang</option><option value="front">Trước</option><option value="right">Phải</option><option value="back">Sau</option><option value="left">Trái</option>
+            </select>
+          </label>
+          {sameFloorCorridors.length === 0 && <p className="mt-2 text-amber-200">Chưa có hành lang cùng tầng để tự nhận diện cổng. Chọn cạnh thủ công trước khi dựng cầu thang.</p>}
+        </div>
+      )}
 
       {/* Meta */}
       {/* Meta */}

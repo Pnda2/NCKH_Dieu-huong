@@ -123,7 +123,8 @@ class DStarLiteIntegrationTests(unittest.TestCase):
     def test_returns_two_safe_route_candidates(self):
         route = self.router.route_from("start")
         self.assertEqual(len(route["route_candidates"]), 2)
-        self.assertEqual({item[1] for item in route["route_candidates"]}, {"short_a", "long_b"})
+        self.assertEqual({item["edge_id"] for item in route["route_candidates"]}, {"short_a", "long_b"})
+        self.assertLess(route["route_candidates"][0]["cost"], route["route_candidates"][1]["cost"])
 
 
 if __name__ == "__main__":

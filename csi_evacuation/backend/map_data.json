@@ -49,62 +49,6 @@
       "floor": 3
     },
     {
-      "id": "a_1784256604234",
-      "name": "Khu vực 4",
-      "type": "room",
-      "x": 513,
-      "y": 135.4124984741211,
-      "floor": 2
-    },
-    {
-      "id": "a_1784256605158",
-      "name": "Khu vực 5",
-      "type": "room",
-      "x": 767,
-      "y": 137.4124984741211,
-      "floor": 2
-    },
-    {
-      "id": "a_1784256606115",
-      "name": "Khu vực 6",
-      "type": "stairs",
-      "x": 768,
-      "y": 283.4124984741211,
-      "floor": 2
-    },
-    {
-      "id": "a_1784607138553",
-      "name": "Khu vực 14",
-      "type": "room",
-      "x": 982,
-      "y": 132.4124984741211,
-      "floor": 2
-    },
-    {
-      "id": "a_1784607142340",
-      "name": "Khu vực 15",
-      "type": "room",
-      "x": 765,
-      "y": -11.587501525878906,
-      "floor": 2
-    },
-    {
-      "id": "a_1784607143651",
-      "name": "Khu vực 16",
-      "type": "stairs",
-      "x": 1084,
-      "y": -20.587501525878906,
-      "floor": 2
-    },
-    {
-      "id": "a_1784607145219",
-      "name": "Khu vực 17",
-      "type": "room",
-      "x": 512,
-      "y": -16.587501525878906,
-      "floor": 2
-    },
-    {
       "id": "a_1784256585920",
       "name": "Khu vực 1",
       "type": "room",
@@ -151,6 +95,62 @@
       "x": 1098,
       "y": 131.4124984741211,
       "floor": 1
+    },
+    {
+      "id": "a_1784256604234",
+      "name": "Khu vực 4",
+      "type": "room",
+      "x": 513,
+      "y": 135.4124984741211,
+      "floor": 2
+    },
+    {
+      "id": "a_1784256605158",
+      "name": "Khu vực 5",
+      "type": "room",
+      "x": 767,
+      "y": 137.4124984741211,
+      "floor": 2
+    },
+    {
+      "id": "a_1784256606115",
+      "name": "Khu vực 6",
+      "type": "stairs",
+      "x": 768,
+      "y": 283.4124984741211,
+      "floor": 2
+    },
+    {
+      "id": "a_1784607138553",
+      "name": "Khu vực 14",
+      "type": "room",
+      "x": 982,
+      "y": 132.4124984741211,
+      "floor": 2
+    },
+    {
+      "id": "a_1784607142340",
+      "name": "Khu vực 15",
+      "type": "room",
+      "x": 765,
+      "y": -11.587501525878906,
+      "floor": 2
+    },
+    {
+      "id": "a_1784607143651",
+      "name": "Khu vực 16",
+      "type": "stairs",
+      "x": 1114,
+      "y": -29.59347378260486,
+      "floor": 2
+    },
+    {
+      "id": "a_1784607145219",
+      "name": "Khu vực 17",
+      "type": "room",
+      "x": 512,
+      "y": -16.587501525878906,
+      "floor": 2
     }
   ],
   "edges": [
@@ -163,7 +163,9 @@
       "widthMeters": 1.5,
       "capacityPeople": 30,
       "flowCapacity": 1.95,
-      "initialOccupancy": 0.35
+      "initialOccupancy": 0.35,
+      "widthEstimated": false,
+      "hazard": 0
     },
     {
       "id": "e_1784256592830",
@@ -174,7 +176,9 @@
       "widthMeters": 1.5,
       "capacityPeople": 30,
       "flowCapacity": 1.95,
-      "initialOccupancy": 0.35
+      "initialOccupancy": 0.35,
+      "widthEstimated": false,
+      "hazard": 0
     },
     {
       "id": "e_1784256610387",
@@ -185,7 +189,9 @@
       "widthMeters": 1.5,
       "capacityPeople": 30,
       "flowCapacity": 1.95,
-      "initialOccupancy": 0.35
+      "initialOccupancy": 0.35,
+      "widthEstimated": false,
+      "hazard": 0
     },
     {
       "id": "e_1784256611521",
@@ -196,7 +202,9 @@
       "widthMeters": 1.5,
       "capacityPeople": 30,
       "flowCapacity": 1.95,
-      "initialOccupancy": 0.35
+      "initialOccupancy": 0.35,
+      "widthEstimated": false,
+      "hazard": 0
     },
     {
       "id": "e_1784256616049_454",
@@ -207,7 +215,9 @@
       "widthMeters": 1.5,
       "capacityPeople": 30,
       "flowCapacity": 1.95,
-      "initialOccupancy": 0.35
+      "initialOccupancy": 0.35,
+      "widthEstimated": false,
+      "hazard": 0
     },
     {
       "id": "e_1784594967567",
@@ -218,7 +228,9 @@
       "widthMeters": 1.5,
       "capacityPeople": 30,
       "flowCapacity": 1.95,
-      "initialOccupancy": 0.35
+      "initialOccupancy": 0.35,
+      "widthEstimated": false,
+      "hazard": 0
     },
     {
       "id": "e_1784607173514",
@@ -229,7 +241,9 @@
       "widthMeters": 1.5,
       "capacityPeople": 30,
       "flowCapacity": 1.95,
-      "initialOccupancy": 0.35
+      "initialOccupancy": 0.35,
+      "widthEstimated": false,
+      "hazard": 0
     },
     {
       "id": "e_1784607174786",
@@ -240,7 +254,9 @@
       "widthMeters": 1.5,
       "capacityPeople": 30,
       "flowCapacity": 1.95,
-      "initialOccupancy": 0.35
+      "initialOccupancy": 0.35,
+      "widthEstimated": false,
+      "hazard": 0
     },
     {
       "id": "e_1784607175946",
@@ -251,7 +267,9 @@
       "widthMeters": 1.5,
       "capacityPeople": 30,
       "flowCapacity": 1.95,
-      "initialOccupancy": 0.35
+      "initialOccupancy": 0.35,
+      "widthEstimated": false,
+      "hazard": 0
     },
     {
       "id": "e_1784607177209",
@@ -262,7 +280,9 @@
       "widthMeters": 1.5,
       "capacityPeople": 30,
       "flowCapacity": 1.95,
-      "initialOccupancy": 0.35
+      "initialOccupancy": 0.35,
+      "widthEstimated": false,
+      "hazard": 0
     },
     {
       "id": "e_1784607195669",
@@ -273,7 +293,9 @@
       "widthMeters": 1.5,
       "capacityPeople": 30,
       "flowCapacity": 1.95,
-      "initialOccupancy": 0.35
+      "initialOccupancy": 0.35,
+      "widthEstimated": false,
+      "hazard": 0
     },
     {
       "id": "e_1784607196871",
@@ -284,7 +306,9 @@
       "widthMeters": 1.5,
       "capacityPeople": 30,
       "flowCapacity": 1.95,
-      "initialOccupancy": 0.35
+      "initialOccupancy": 0.35,
+      "widthEstimated": false,
+      "hazard": 0
     },
     {
       "id": "e_1784607198019",
@@ -295,7 +319,9 @@
       "widthMeters": 1.5,
       "capacityPeople": 30,
       "flowCapacity": 1.95,
-      "initialOccupancy": 0.35
+      "initialOccupancy": 0.35,
+      "widthEstimated": false,
+      "hazard": 0
     },
     {
       "id": "e_1784607198814",
@@ -306,7 +332,9 @@
       "widthMeters": 1.5,
       "capacityPeople": 30,
       "flowCapacity": 1.95,
-      "initialOccupancy": 0.35
+      "initialOccupancy": 0.35,
+      "widthEstimated": false,
+      "hazard": 0
     },
     {
       "id": "e_1784607199732",
@@ -317,7 +345,9 @@
       "widthMeters": 1.5,
       "capacityPeople": 30,
       "flowCapacity": 1.95,
-      "initialOccupancy": 0.35
+      "initialOccupancy": 0.35,
+      "widthEstimated": false,
+      "hazard": 0
     },
     {
       "id": "e_1784607201527",
@@ -328,7 +358,9 @@
       "widthMeters": 1.5,
       "capacityPeople": 30,
       "flowCapacity": 1.95,
-      "initialOccupancy": 0.35
+      "initialOccupancy": 0.35,
+      "widthEstimated": false,
+      "hazard": 0
     },
     {
       "id": "e_1784607227098_248",
@@ -339,7 +371,9 @@
       "widthMeters": 1.5,
       "capacityPeople": 30,
       "flowCapacity": 1.95,
-      "initialOccupancy": 0.35
+      "initialOccupancy": 0.35,
+      "widthEstimated": false,
+      "hazard": 0
     },
     {
       "id": "e_1784607251904",
@@ -350,7 +384,9 @@
       "widthMeters": 1.5,
       "capacityPeople": 30,
       "flowCapacity": 1.95,
-      "initialOccupancy": 0.35
+      "initialOccupancy": 0.35,
+      "widthEstimated": false,
+      "hazard": 0
     },
     {
       "id": "e_1784607253776",
@@ -361,9 +397,12 @@
       "widthMeters": 1.5,
       "capacityPeople": 30,
       "flowCapacity": 1.95,
-      "initialOccupancy": 0.35
+      "initialOccupancy": 0.35,
+      "widthEstimated": false,
+      "hazard": 0
     }
   ],
+  "devices": [],
   "floorImages": {},
   "floors": [
     1,

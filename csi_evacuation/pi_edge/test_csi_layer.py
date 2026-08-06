@@ -14,3 +14,4 @@ class CSILayerTests(unittest.TestCase):
         layer.update("edge", 0.6, now=1)
         self.assertEqual(layer.state_for("edge", now=4)["status"], "STALE")
         self.assertEqual(layer.update("new", "bad")["status"], "UNKNOWN")
+        self.assertEqual(layer.state_for("new")["status"], "UNKNOWN")

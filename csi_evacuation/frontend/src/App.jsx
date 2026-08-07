@@ -137,12 +137,12 @@ function App() {
   }, [notice]);
 
   // ─── Area (Node) Handlers ─────────────────────────
-  const handleAddArea = (x, y) => {
+  const handleAddArea = (x, y, visualKind = 'room') => {
     const newArea = {
       id: `a_${Date.now()}`,
       name: `Khu vực ${areas.length + 1}`,
       type: 'room',
-      visualKind: 'room',
+      visualKind: visualKind === 'junction' ? 'junction' : 'room',
       x,
       y,
       floor: activeFloor,

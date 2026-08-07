@@ -52,6 +52,7 @@ export default function AreaForm({ area, allAreas, stairwells, corridors, onTogg
     const otherId = corridor.areaA_id === area.id ? corridor.areaB_id : corridor.areaB_id === area.id ? corridor.areaA_id : null;
     return otherId && allAreas.find((item) => item.id === otherId)?.floor === area.floor;
   });
+  const junctionSuggestion = area.type === 'room' && area.visualKind !== 'junction' && sameFloorCorridors.length >= 3;
 
   const isConnected = (targetId) => {
     return (corridors || []).some(
@@ -118,6 +119,8 @@ export default function AreaForm({ area, allAreas, stairwells, corridors, onTogg
           ))}
         </div>
       </div>
+
+      {junctionSuggestion && <button type="button" onClick={() => handleVisualKindChange('junction')} className="w-full rounded-lg border border-teal-500/40 bg-teal-950/30 px-3 py-2 text-left text-[10px] text-teal-100 hover:bg-teal-900/40">Gợi ý: node này có {sameFloorCorridors.length} hành lang cùng tầng. Đổi sang nút giao để các nhánh nối mượt hơn.</button>}
 
       <div className="pt-3 border-t border-slate-600 space-y-2">
         <label className="block text-slate-400 text-xs font-medium">Khối 3D</label>

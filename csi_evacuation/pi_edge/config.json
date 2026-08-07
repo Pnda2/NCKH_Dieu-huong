@@ -6,7 +6,16 @@
       "type": "room",
       "x": 573,
       "y": -21.587501525878906,
-      "floor": 3
+      "floor": 3,
+      "visualKind": "room",
+      "visual3d": {
+        "widthMeters": 2.4,
+        "depthMeters": 2.4,
+        "heightMeters": 2.7,
+        "rotationDegrees": 0,
+        "sizeMode": "auto",
+        "color": "#6ea8d9"
+      }
     },
     {
       "id": "a_1784607132610",
@@ -14,7 +23,16 @@
       "type": "room",
       "x": 850,
       "y": -21.587501525878906,
-      "floor": 3
+      "floor": 3,
+      "visualKind": "room",
+      "visual3d": {
+        "widthMeters": 2.4,
+        "depthMeters": 2.4,
+        "heightMeters": 2.7,
+        "rotationDegrees": 0,
+        "sizeMode": "auto",
+        "color": "#6ea8d9"
+      }
     },
     {
       "id": "a_1784607133214",
@@ -22,7 +40,16 @@
       "type": "room",
       "x": 690,
       "y": 109.4124984741211,
-      "floor": 3
+      "floor": 3,
+      "visualKind": "junction",
+      "visual3d": {
+        "widthMeters": 2.4,
+        "depthMeters": 2.4,
+        "heightMeters": 2.7,
+        "rotationDegrees": 0,
+        "sizeMode": "auto",
+        "color": "#6ea8d9"
+      }
     },
     {
       "id": "a_1784607133995",
@@ -30,7 +57,16 @@
       "type": "room",
       "x": 855,
       "y": 210.4124984741211,
-      "floor": 3
+      "floor": 3,
+      "visualKind": "room",
+      "visual3d": {
+        "widthMeters": 2.4,
+        "depthMeters": 2.4,
+        "heightMeters": 2.7,
+        "rotationDegrees": 0,
+        "sizeMode": "auto",
+        "color": "#6ea8d9"
+      }
     },
     {
       "id": "a_1784607135092",
@@ -38,15 +74,34 @@
       "type": "room",
       "x": 991,
       "y": 106.4124984741211,
-      "floor": 3
+      "floor": 3,
+      "visualKind": "room",
+      "visual3d": {
+        "widthMeters": 2.4,
+        "depthMeters": 2.4,
+        "heightMeters": 2.7,
+        "rotationDegrees": 0,
+        "sizeMode": "auto",
+        "color": "#6ea8d9"
+      }
     },
     {
       "id": "a_1784607135861",
       "name": "Khu vực 13",
       "type": "stairs",
-      "x": 1124,
-      "y": -32.587501525878906,
-      "floor": 3
+      "x": 1114,
+      "y": -29.59347378260486,
+      "floor": 3,
+      "visualKind": "stairs",
+      "visual3d": {
+        "widthMeters": 2.2,
+        "depthMeters": 3.2,
+        "heightMeters": 2.7,
+        "rotationDegrees": 0,
+        "sizeMode": "manual",
+        "color": "#f4a261"
+      },
+      "stairwellId": "sw_a_1784607135861_a_1784607143651"
     },
     {
       "id": "a_1784256585920",
@@ -54,7 +109,16 @@
       "type": "room",
       "x": 572,
       "y": 133.4124984741211,
-      "floor": 1
+      "floor": 1,
+      "visualKind": "junction",
+      "visual3d": {
+        "widthMeters": 2.4,
+        "depthMeters": 2.4,
+        "heightMeters": 2.7,
+        "rotationDegrees": 0,
+        "sizeMode": "auto",
+        "color": "#6ea8d9"
+      }
     },
     {
       "id": "a_1784256587602",
@@ -62,7 +126,16 @@
       "type": "room",
       "x": 840,
       "y": 131.4124984741211,
-      "floor": 1
+      "floor": 1,
+      "visualKind": "junction",
+      "visual3d": {
+        "widthMeters": 2.4,
+        "depthMeters": 2.4,
+        "heightMeters": 2.7,
+        "rotationDegrees": 0,
+        "sizeMode": "auto",
+        "color": "#6ea8d9"
+      }
     },
     {
       "id": "a_1784256588572",
@@ -70,15 +143,34 @@
       "type": "stairs",
       "x": 842,
       "y": 291.4124984741211,
-      "floor": 1
+      "floor": 1,
+      "visualKind": "stairs",
+      "visual3d": {
+        "widthMeters": 2.2,
+        "depthMeters": 3.2,
+        "heightMeters": 2.7,
+        "rotationDegrees": 0,
+        "sizeMode": "manual",
+        "color": "#f4a261"
+      },
+      "stairwellId": "sw_a_1784256588572_a_1784256606115"
     },
     {
       "id": "a_1784594948992",
       "name": "Khu vực 7",
       "type": "exit",
-      "x": 571.659936203223,
-      "y": 294.31340500414314,
-      "floor": 1
+      "x": 569,
+      "y": 294.170747928632,
+      "floor": 1,
+      "visualKind": "exit",
+      "visual3d": {
+        "widthMeters": 1.8,
+        "depthMeters": 1.4,
+        "heightMeters": 2.6,
+        "rotationDegrees": 0,
+        "sizeMode": "auto",
+        "color": "#69b578"
+      }
     },
     {
       "id": "a_1784607239695",
@@ -86,7 +178,16 @@
       "type": "exit",
       "x": 837,
       "y": -48.587501525878906,
-      "floor": 1
+      "floor": 1,
+      "visualKind": "exit",
+      "visual3d": {
+        "widthMeters": 1.8,
+        "depthMeters": 1.4,
+        "heightMeters": 2.6,
+        "rotationDegrees": 0,
+        "sizeMode": "auto",
+        "color": "#69b578"
+      }
     },
     {
       "id": "a_1784607246504",
@@ -94,7 +195,16 @@
       "type": "room",
       "x": 1098,
       "y": 131.4124984741211,
-      "floor": 1
+      "floor": 1,
+      "visualKind": "room",
+      "visual3d": {
+        "widthMeters": 2.4,
+        "depthMeters": 2.4,
+        "heightMeters": 2.7,
+        "rotationDegrees": 0,
+        "sizeMode": "auto",
+        "color": "#6ea8d9"
+      }
     },
     {
       "id": "a_1784256604234",
@@ -102,7 +212,16 @@
       "type": "room",
       "x": 513,
       "y": 135.4124984741211,
-      "floor": 2
+      "floor": 2,
+      "visualKind": "junction",
+      "visual3d": {
+        "widthMeters": 2.4,
+        "depthMeters": 2.4,
+        "heightMeters": 2.7,
+        "rotationDegrees": 0,
+        "sizeMode": "auto",
+        "color": "#6ea8d9"
+      }
     },
     {
       "id": "a_1784256605158",
@@ -110,15 +229,34 @@
       "type": "room",
       "x": 767,
       "y": 137.4124984741211,
-      "floor": 2
+      "floor": 2,
+      "visualKind": "room",
+      "visual3d": {
+        "widthMeters": 2.4,
+        "depthMeters": 2.4,
+        "heightMeters": 2.7,
+        "rotationDegrees": 0,
+        "sizeMode": "auto",
+        "color": "#6ea8d9"
+      }
     },
     {
       "id": "a_1784256606115",
       "name": "Khu vực 6",
       "type": "stairs",
-      "x": 768,
-      "y": 283.4124984741211,
-      "floor": 2
+      "x": 842,
+      "y": 291.4124984741211,
+      "floor": 2,
+      "visualKind": "stairs",
+      "visual3d": {
+        "widthMeters": 2.2,
+        "depthMeters": 3.2,
+        "heightMeters": 2.7,
+        "rotationDegrees": 0,
+        "sizeMode": "manual",
+        "color": "#f4a261"
+      },
+      "stairwellId": "sw_a_1784256588572_a_1784256606115"
     },
     {
       "id": "a_1784607138553",
@@ -126,7 +264,16 @@
       "type": "room",
       "x": 982,
       "y": 132.4124984741211,
-      "floor": 2
+      "floor": 2,
+      "visualKind": "junction",
+      "visual3d": {
+        "widthMeters": 2.4,
+        "depthMeters": 2.4,
+        "heightMeters": 2.7,
+        "rotationDegrees": 0,
+        "sizeMode": "auto",
+        "color": "#6ea8d9"
+      }
     },
     {
       "id": "a_1784607142340",
@@ -134,7 +281,16 @@
       "type": "room",
       "x": 765,
       "y": -11.587501525878906,
-      "floor": 2
+      "floor": 2,
+      "visualKind": "room",
+      "visual3d": {
+        "widthMeters": 2.4,
+        "depthMeters": 2.4,
+        "heightMeters": 2.7,
+        "rotationDegrees": 0,
+        "sizeMode": "auto",
+        "color": "#6ea8d9"
+      }
     },
     {
       "id": "a_1784607143651",
@@ -142,7 +298,17 @@
       "type": "stairs",
       "x": 1114,
       "y": -29.59347378260486,
-      "floor": 2
+      "floor": 2,
+      "visualKind": "stairs",
+      "visual3d": {
+        "widthMeters": 2.2,
+        "depthMeters": 3.2,
+        "heightMeters": 2.7,
+        "rotationDegrees": 0,
+        "sizeMode": "manual",
+        "color": "#f4a261"
+      },
+      "stairwellId": "sw_a_1784607135861_a_1784607143651"
     },
     {
       "id": "a_1784607145219",
@@ -150,7 +316,16 @@
       "type": "room",
       "x": 512,
       "y": -16.587501525878906,
-      "floor": 2
+      "floor": 2,
+      "visualKind": "room",
+      "visual3d": {
+        "widthMeters": 2.4,
+        "depthMeters": 2.4,
+        "heightMeters": 2.7,
+        "rotationDegrees": 0,
+        "sizeMode": "auto",
+        "color": "#6ea8d9"
+      }
     }
   ],
   "edges": [
@@ -165,7 +340,8 @@
       "flowCapacity": 1.95,
       "initialOccupancy": 0.35,
       "widthEstimated": false,
-      "hazard": 0
+      "hazard": 0,
+      "lengthEstimated": true
     },
     {
       "id": "e_1784256592830",
@@ -178,7 +354,8 @@
       "flowCapacity": 1.95,
       "initialOccupancy": 0.35,
       "widthEstimated": false,
-      "hazard": 0
+      "hazard": 0,
+      "lengthEstimated": true
     },
     {
       "id": "e_1784256610387",
@@ -191,7 +368,8 @@
       "flowCapacity": 1.95,
       "initialOccupancy": 0.35,
       "widthEstimated": false,
-      "hazard": 0
+      "hazard": 0,
+      "lengthEstimated": true
     },
     {
       "id": "e_1784256611521",
@@ -204,7 +382,8 @@
       "flowCapacity": 1.95,
       "initialOccupancy": 0.35,
       "widthEstimated": false,
-      "hazard": 0
+      "hazard": 0,
+      "lengthEstimated": true
     },
     {
       "id": "e_1784256616049_454",
@@ -217,7 +396,8 @@
       "flowCapacity": 1.95,
       "initialOccupancy": 0.35,
       "widthEstimated": false,
-      "hazard": 0
+      "hazard": 0,
+      "lengthEstimated": true
     },
     {
       "id": "e_1784594967567",
@@ -230,7 +410,8 @@
       "flowCapacity": 1.95,
       "initialOccupancy": 0.35,
       "widthEstimated": false,
-      "hazard": 0
+      "hazard": 0,
+      "lengthEstimated": true
     },
     {
       "id": "e_1784607173514",
@@ -243,7 +424,8 @@
       "flowCapacity": 1.95,
       "initialOccupancy": 0.35,
       "widthEstimated": false,
-      "hazard": 0
+      "hazard": 0,
+      "lengthEstimated": true
     },
     {
       "id": "e_1784607174786",
@@ -256,7 +438,8 @@
       "flowCapacity": 1.95,
       "initialOccupancy": 0.35,
       "widthEstimated": false,
-      "hazard": 0
+      "hazard": 0,
+      "lengthEstimated": true
     },
     {
       "id": "e_1784607175946",
@@ -269,7 +452,8 @@
       "flowCapacity": 1.95,
       "initialOccupancy": 0.35,
       "widthEstimated": false,
-      "hazard": 0
+      "hazard": 0,
+      "lengthEstimated": true
     },
     {
       "id": "e_1784607177209",
@@ -282,7 +466,8 @@
       "flowCapacity": 1.95,
       "initialOccupancy": 0.35,
       "widthEstimated": false,
-      "hazard": 0
+      "hazard": 0,
+      "lengthEstimated": true
     },
     {
       "id": "e_1784607195669",
@@ -295,7 +480,8 @@
       "flowCapacity": 1.95,
       "initialOccupancy": 0.35,
       "widthEstimated": false,
-      "hazard": 0
+      "hazard": 0,
+      "lengthEstimated": true
     },
     {
       "id": "e_1784607196871",
@@ -308,7 +494,8 @@
       "flowCapacity": 1.95,
       "initialOccupancy": 0.35,
       "widthEstimated": false,
-      "hazard": 0
+      "hazard": 0,
+      "lengthEstimated": true
     },
     {
       "id": "e_1784607198019",
@@ -321,7 +508,8 @@
       "flowCapacity": 1.95,
       "initialOccupancy": 0.35,
       "widthEstimated": false,
-      "hazard": 0
+      "hazard": 0,
+      "lengthEstimated": true
     },
     {
       "id": "e_1784607198814",
@@ -334,7 +522,8 @@
       "flowCapacity": 1.95,
       "initialOccupancy": 0.35,
       "widthEstimated": false,
-      "hazard": 0
+      "hazard": 0,
+      "lengthEstimated": true
     },
     {
       "id": "e_1784607199732",
@@ -347,7 +536,8 @@
       "flowCapacity": 1.95,
       "initialOccupancy": 0.35,
       "widthEstimated": false,
-      "hazard": 0
+      "hazard": 0,
+      "lengthEstimated": true
     },
     {
       "id": "e_1784607201527",
@@ -360,7 +550,8 @@
       "flowCapacity": 1.95,
       "initialOccupancy": 0.35,
       "widthEstimated": false,
-      "hazard": 0
+      "hazard": 0,
+      "lengthEstimated": true
     },
     {
       "id": "e_1784607227098_248",
@@ -373,7 +564,8 @@
       "flowCapacity": 1.95,
       "initialOccupancy": 0.35,
       "widthEstimated": false,
-      "hazard": 0
+      "hazard": 0,
+      "lengthEstimated": true
     },
     {
       "id": "e_1784607251904",
@@ -386,7 +578,8 @@
       "flowCapacity": 1.95,
       "initialOccupancy": 0.35,
       "widthEstimated": false,
-      "hazard": 0
+      "hazard": 0,
+      "lengthEstimated": true
     },
     {
       "id": "e_1784607253776",
@@ -399,7 +592,8 @@
       "flowCapacity": 1.95,
       "initialOccupancy": 0.35,
       "widthEstimated": false,
-      "hazard": 0
+      "hazard": 0,
+      "lengthEstimated": true
     }
   ],
   "devices": [],
@@ -408,5 +602,62 @@
     1,
     2,
     3
+  ],
+  "schemaVersion": 3,
+  "scene3d": {
+    "planUnitsPerMeter": 40,
+    "floorHeightMeters": 3.2,
+    "floorExplodeMeters": 2,
+    "gridSizeMeters": 1
+  },
+  "stairwells": [
+    {
+      "id": "sw_a_1784256588572_a_1784256606115",
+      "areaIds": [
+        "a_1784256588572",
+        "a_1784256606115"
+      ],
+      "planAnchor": {
+        "x": 842,
+        "y": 291.4124984741211
+      },
+      "visual3d": {
+        "widthMeters": 2.2,
+        "depthMeters": 3.2,
+        "rotationDegrees": 0
+      },
+      "landingConfigs": {
+        "a_1784256588572": {
+          "entranceSide": "auto"
+        },
+        "a_1784256606115": {
+          "entranceSide": "auto"
+        }
+      }
+    },
+    {
+      "id": "sw_a_1784607135861_a_1784607143651",
+      "areaIds": [
+        "a_1784607143651",
+        "a_1784607135861"
+      ],
+      "planAnchor": {
+        "x": 1114,
+        "y": -29.59347378260486
+      },
+      "visual3d": {
+        "widthMeters": 2.2,
+        "depthMeters": 3.2,
+        "rotationDegrees": 0
+      },
+      "landingConfigs": {
+        "a_1784607143651": {
+          "entranceSide": "auto"
+        },
+        "a_1784607135861": {
+          "entranceSide": "auto"
+        }
+      }
+    }
   ]
 }

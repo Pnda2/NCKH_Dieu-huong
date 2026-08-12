@@ -188,7 +188,10 @@ export function createAreaPortalRegistry(placements = []) {
       const center = [assembly.center[0] + assembly.wallTangent[0] * shift, assembly.center[1], assembly.center[2] + assembly.wallTangent[2] * shift];
       const localCenter = [assembly.localCenter[0] + assembly.localTangent[0] * shift, assembly.localCenter[1] + assembly.localTangent[1] * shift];
       const normalized = { ...assembly, id: `${areaId}-${assembly.side}-${index}`, offset, openingWidth: assembly.end - assembly.start, width: assembly.end - assembly.start, center, localCenter };
-      assembly.members.forEach((member) => { byEdgeEndpoint[`${member.edgeId}:${member.endpoint}`] = normalized; });
+      // The room wall renders one merged aperture, but every corridor must
+      // retain its own doorway anchor. Reusing `normalized` here shifted all
+      // members to the aperture centre and made diagonal corridors miss doors.
+      assembly.members.forEach((member) => { byEdgeEndpoint[`${member.edgeId}:${member.endpoint}`] = { ...member, apertureId: normalized.id }; });
       return normalized;
     });
   });
@@ -208,6 +211,98 @@ export function portalThroatGeometry(placement, outwardDirection, corridorWidth,
     mouthLeft: point(mouthCenter, placement.wallTangent, -mouthHalf), mouthRight: point(mouthCenter, placement.wallTangent, mouthHalf),
     spineLeft: point(spineCenter, spineTangent, -spineHalf), spineRight: point(spineCenter, spineTangent, spineHalf),
   };
+}
+
+function horizontalUnit(vector, fallback = [1, 0, 0]) {
+  const length = Math.hypot(vector[0], vector[2]);
+  return length > .0001 ? [vector[0] / length, 0, vector[2] / length] : fallback;
+}
+
+function portalEdgeSection(portal) {
+  const halfWidth = (portal.openingWidth || portal.width) / 2;
+  const point = (scale) => [portal.center[0] + portal.wallTangent[0] * scale, portal.center[1], portal.center[2] + portal.wallTangent[2] * scale];
+  return { center: portal.center, left: point(-halfWidth), right: point(halfWidth) };
+}
+
+function sweepSection(center, tangent, width) {
+  const direction = horizontalUnit(tangent);
+  const normal = [-direction[2], 0, direction[0]];
+  const halfWidth = width / 2;
+  return {
+    center,
+    left: [center[0] + normal[0] * halfWidth, center[1], center[2] + normal[2] * halfWidth],
+    right: [center[0] - normal[0] * halfWidth, center[1], center[2] - normal[2] * halfWidth],
+  };
+}
+
+function sectionDistance(left, right) {
+  return (left.left[0] - right.left[0]) ** 2 + (left.left[2] - right.left[2]) ** 2
+    + (left.right[0] - right.right[0]) ** 2 + (left.right[2] - right.right[2]) ** 2;
+}
+
+function orientSection(section, previous) {
+  const flipped = { ...section, left: section.right, right: section.left };
+  return sectionDistance(previous, flipped) < sectionDistance(previous, section) ? flipped : section;
+}
+
+function cross2d(a, b, c) {
+  return (b[0] - a[0]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[0] - a[0]);
+}
+
+function properIntersection(a, b, c, d) {
+  const abC = cross2d(a, b, c); const abD = cross2d(a, b, d); const cdA = cross2d(c, d, a); const cdB = cross2d(c, d, b);
+  return Math.sign(abC) !== Math.sign(abD) && Math.sign(cdA) !== Math.sign(cdB) && Math.abs(abC) > .0001 && Math.abs(abD) > .0001 && Math.abs(cdA) > .0001 && Math.abs(cdB) > .0001;
+}
+
+function sweepIsSafe(sections) {
+  return sections.every((section, index) => {
+    if (Math.hypot(section.left[0] - section.right[0], section.left[2] - section.right[2]) < .08) return false;
+    if (index === sections.length - 1) return true;
+    const next = sections[index + 1];
+    const firstTriangle = Math.abs(cross2d(section.left, section.right, next.right));
+    const secondTriangle = Math.abs(cross2d(section.left, next.right, next.left));
+    return firstTriangle > .0001 && secondTriangle > .0001 && !properIntersection(section.left, next.left, section.right, next.right);
+  });
+}
+
+function layoutFromSections(kind, sections) {
+  const vertices = sections.flatMap((section) => [section.left, section.right]);
+  const indices = [];
+  for (let index = 0; index < sections.length - 1; index += 1) {
+    const current = index * 2; const next = current + 2;
+    indices.push(current, current + 1, next + 1, current, next + 1, next);
+  }
+  return {
+    kind,
+    sections,
+    vertices,
+    indices,
+    outline: [...sections.map((section) => section.left), ...sections.slice().reverse().map((section) => section.right)],
+    wallPaths: kind === 'corridor' ? [sections.map((section) => section.left), sections.map((section) => section.right)] : [],
+  };
+}
+
+// A swept strip is robust for diagonal room-to-room links: each pair of
+// sections is triangulated explicitly, while the long core remains straight.
+export function corridorSweepLayout(startPortal, endPortal, horizontalDirection, corridorWidth, direct = false) {
+  const start = portalEdgeSection(startPortal);
+  const rawEnd = portalEdgeSection(endPortal);
+  const alignedEnd = orientSection(rawEnd, start);
+  if (direct) return layoutFromSections('bridge', [start, alignedEnd]);
+
+  const axis = horizontalUnit([alignedEnd.center[0] - start.center[0], 0, alignedEnd.center[2] - start.center[2]], horizontalDirection);
+  const distance = Math.hypot(alignedEnd.center[0] - start.center[0], alignedEnd.center[2] - start.center[2]);
+  const requestedLead = Math.min(.28, Math.max(.08, distance * .14));
+  const lead = Math.min(requestedLead, Math.max(0, (distance - .16) / 2));
+  if (lead < .08) return layoutFromSections('bridge', [start, alignedEnd]);
+  const coreWidth = corridorDisplayWidth(corridorWidth);
+  const startCore = sweepSection([start.center[0] + axis[0] * lead, start.center[1], start.center[2] + axis[2] * lead], axis, coreWidth);
+  const endCore = sweepSection([alignedEnd.center[0] - axis[0] * lead, alignedEnd.center[1], alignedEnd.center[2] - axis[2] * lead], axis, coreWidth);
+  const sections = [start, orientSection(startCore, start)];
+  sections.push(orientSection(endCore, sections[sections.length - 1]));
+  sections.push(orientSection(alignedEnd, sections[sections.length - 1]));
+  if (sweepIsSafe(sections)) return layoutFromSections('corridor', sections);
+  return layoutFromSections('bridge', [start, alignedEnd]);
 }
 
 export function portalInteriorExtension(area, placement, outwardDirection, corridorWidth, maximumDepth = .6, margin = .12) {

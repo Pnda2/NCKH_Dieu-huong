@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Grid, Html, OrbitControls, RoundedBox } from '@react-three/drei';
-import { areaVisualKind, cameraPreset, corridorDisplayWidth, corridorGeometry, createAreaPortalRegistry, dotPlacement, floorDisplayY, junctionOperationalState, junctionRadius, planPosition, portalInteriorExtension, portalPlacement, portalThroatGeometry, roomWallLayout, sceneSettings, stairEntranceSide, stairFlightLayout, stairwellCoreModels, visualForArea, visibleOnFloor, WALK_SURFACE_Y, worldPosition } from './scene3d';
+import { areaVisualKind, cameraPreset, corridorDisplayWidth, corridorGeometry, corridorSweepLayout, createAreaPortalRegistry, dotPlacement, floorDisplayY, junctionOperationalState, junctionRadius, planPosition, portalPlacement, roomWallLayout, sceneSettings, stairEntranceSide, stairFlightLayout, stairwellCoreModels, visualForArea, visibleOnFloor, WALK_SURFACE_Y, worldPosition } from './scene3d';
 
 const MAX_DOTS = 2000;
 // Keep visible walking surfaces materially above their structural plinths.
@@ -25,20 +25,95 @@ function Beam({ from, to, color = '#fff7ed' }) {
   return <mesh position={position} quaternion={quaternion}><cylinderGeometry args={[.028, .028, length, 6]} /><meshStandardMaterial color={color} roughness={.5} /></mesh>;
 }
 
-function PolygonFloor({ points, color, y = .08 }) {
+function SweepSurface({ layout, color, y, depth = 0, roughness = .72 }) {
   const geometry = useMemo(() => {
-    const vertices = new Float32Array(points.flatMap((point) => [point[0], point[1] + y, point[2]]));
+    const pointCount = layout.vertices.length;
+    const top = layout.vertices.flatMap((point) => [point[0], 0, point[2]]);
+    const vertices = depth > 0 ? [...top, ...layout.vertices.flatMap((point) => [point[0], -depth, point[2]])] : top;
+    const indices = [...layout.indices];
+    if (depth > 0) {
+      layout.indices.forEach((index, position) => {
+        if (position % 3 === 0) indices.push(index + pointCount, layout.indices[position + 2] + pointCount, layout.indices[position + 1] + pointCount);
+      });
+      for (let index = 0; index < layout.sections.length - 1; index += 1) {
+        const left = index * 2; const right = left + 1; const nextLeft = left + 2; const nextRight = left + 3;
+        indices.push(
+          left, nextLeft, nextLeft + pointCount, left, nextLeft + pointCount, left + pointCount,
+          right, right + pointCount, nextRight + pointCount, right, nextRight + pointCount, nextRight,
+        );
+      }
+      const lastLeft = pointCount - 2; const lastRight = pointCount - 1;
+      indices.push(
+        0, pointCount, pointCount + 1, 0, pointCount + 1, 1,
+        lastLeft, lastRight, lastRight + pointCount, lastLeft, lastRight + pointCount, lastLeft + pointCount,
+      );
+    }
     const next = new THREE.BufferGeometry();
-    next.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-    next.setIndex([0, 1, 2, 0, 2, 3]); next.computeVertexNormals();
+    next.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); next.setIndex(indices); next.computeVertexNormals();
     return next;
-  }, [points, y]);
-  // Do not dispose this geometry from an effect. React StrictMode runs an
-  // effect cleanup once during development while the mesh is still mounted,
-  // which made the selected-floor walk surfaces intermittently disappear.
-  return <mesh geometry={geometry} renderOrder={3} dispose={null}>
-    <meshStandardMaterial color={color} roughness={.72} side={THREE.DoubleSide} polygonOffset polygonOffsetFactor={-2} polygonOffsetUnits={-2} />
+  }, [layout, depth]);
+  return <mesh geometry={geometry} position={[0, layout.vertices[0][1] + y, 0]} renderOrder={3} dispose={null}>
+    <meshStandardMaterial color={color} roughness={roughness} side={THREE.DoubleSide} polygonOffset polygonOffsetFactor={-2} polygonOffsetUnits={-2} />
   </mesh>;
+}
+
+function MiteredCorridorWall({ path, height = .48, thickness = .1 }) {
+  const geometry = useMemo(() => {
+    const directionAt = (from, to) => {
+      const dx = to[0] - from[0]; const dz = to[2] - from[2]; const length = Math.hypot(dx, dz) || 1;
+      return [dx / length, dz / length];
+    };
+    const offsetAt = (index) => {
+      const previous = index > 0 ? directionAt(path[index - 1], path[index]) : null;
+      const next = index < path.length - 1 ? directionAt(path[index], path[index + 1]) : null;
+      const previousNormal = previous && [-previous[1], previous[0]];
+      const nextNormal = next && [-next[1], next[0]];
+      if (!previousNormal) return nextNormal.map((value) => value * thickness / 2);
+      if (!nextNormal) return previousNormal.map((value) => value * thickness / 2);
+      const sumX = previousNormal[0] + nextNormal[0]; const sumZ = previousNormal[1] + nextNormal[1]; const sumLength = Math.hypot(sumX, sumZ) || 1;
+      const miter = [sumX / sumLength, sumZ / sumLength];
+      const scale = Math.min(thickness * 1.5, thickness / 2 / Math.max(.2, Math.abs(miter[0] * nextNormal[0] + miter[1] * nextNormal[1])));
+      return [miter[0] * scale, miter[1] * scale];
+    };
+    const offsets = path.map((_, index) => offsetAt(index));
+    const vertices = [];
+    path.forEach((point, index) => {
+      const [offsetX, offsetZ] = offsets[index];
+      vertices.push(
+        point[0] + offsetX, 0, point[2] + offsetZ,
+        point[0] - offsetX, 0, point[2] - offsetZ,
+        point[0] + offsetX, height, point[2] + offsetZ,
+        point[0] - offsetX, height, point[2] - offsetZ,
+      );
+    });
+    const indices = [];
+    for (let index = 0; index < path.length - 1; index += 1) {
+      const current = index * 4; const next = (index + 1) * 4;
+      indices.push(
+        current + 2, current + 3, next + 3, current + 2, next + 3, next + 2,
+        current, next, next + 2, current, next + 2, current + 2,
+        current + 1, current + 3, next + 3, current + 1, next + 3, next + 1,
+        current, current + 1, current + 3, current, current + 3, current + 2,
+      );
+    }
+    const first = 0; const last = (path.length - 1) * 4;
+    indices.push(first, first + 2, first + 3, first, first + 3, first + 1, last, last + 1, last + 3, last, last + 3, last + 2);
+    const next = new THREE.BufferGeometry();
+    next.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); next.setIndex(indices); next.computeVertexNormals();
+    return next;
+  }, [path, height, thickness]);
+  return <mesh geometry={geometry} position={[0, path[0][1] + FLOOR_TOP_Y, 0]} renderOrder={4} dispose={null}>
+    <meshStandardMaterial color="#f8fafc" roughness={.64} side={THREE.DoubleSide} />
+  </mesh>;
+}
+
+function FootprintSelection({ outline }) {
+  const geometry = useMemo(() => {
+    const next = new THREE.BufferGeometry();
+    next.setFromPoints(outline.map((point) => new THREE.Vector3(point[0], point[1] + FLOOR_TOP_Y + .04, point[2])));
+    return next;
+  }, [outline]);
+  return <lineLoop geometry={geometry} dispose={null}><lineBasicMaterial color="#e0f2fe" /></lineLoop>;
 }
 
 function StairLanding({ visual, side, directions = [] }) {
@@ -109,32 +184,15 @@ function AreaBlock({ area, scene, activeFloor, floorView, floors, selected, edit
   </group>;
 }
 
-function CorridorBlock({ corridor, areaA, areaB, scene, activeFloor, floorView, floors, metric, blocked, selected, onSelect, showOperational, portalOptions, startPortal, endPortal, startInterior, endInterior }) {
+function CorridorBlock({ corridor, areaA, areaB, scene, activeFloor, floorView, floors, metric, blocked, selected, onSelect, showOperational, portalOptions, startPortal, endPortal }) {
   const geometry = corridorGeometry(areaA, areaB, scene, activeFloor, floorView, floors, portalOptions); const width = corridorDisplayWidth(corridor.widthMeters); const color = corridorColor(metric, blocked, showOperational);
-  const startThroat = portalThroatGeometry(startPortal, geometry.horizontalDirection, width);
-  const endThroat = portalThroatGeometry(endPortal, [-geometry.horizontalDirection[0], 0, -geometry.horizontalDirection[2]], width);
-  const mainVector = [endThroat.spineCenter[0] - startThroat.spineCenter[0], 0, endThroat.spineCenter[2] - startThroat.spineCenter[2]];
-  const mainLength = Math.max(.1, Math.hypot(mainVector[0], mainVector[2])); const mainYaw = Math.atan2(mainVector[0], mainVector[2]);
-  const mainCenter = [(startThroat.spineCenter[0] + endThroat.spineCenter[0]) / 2, (startThroat.spineCenter[1] + endThroat.spineCenter[1]) / 2, (startThroat.spineCenter[2] + endThroat.spineCenter[2]) / 2];
+  const layout = corridorSweepLayout(startPortal, endPortal, geometry.horizontalDirection, width, geometry.direct);
   const select = (event) => { event.stopPropagation(); onSelect({ type: 'corridor', data: corridor }); };
-  const startQuad = [startThroat.mouthLeft, startThroat.mouthRight, startThroat.spineRight, startThroat.spineLeft];
-  const endQuad = [endThroat.spineLeft, endThroat.spineRight, endThroat.mouthRight, endThroat.mouthLeft];
-  if (geometry.direct) return <group onClick={select}>
-    <PolygonFloor points={[startThroat.mouthLeft, startThroat.mouthRight, endThroat.mouthRight, endThroat.mouthLeft]} color="#c5d3dc" y={WALK_SURFACE_Y - .07} />
-    <PolygonFloor points={[startThroat.mouthLeft, startThroat.mouthRight, endThroat.mouthRight, endThroat.mouthLeft]} color={color} y={FLOOR_TOP_Y} />
-    {startInterior && <PolygonFloor points={startInterior.points} color={color} y={FLOOR_TOP_Y + .002} />}{endInterior && <PolygonFloor points={endInterior.points} color={color} y={FLOOR_TOP_Y + .002} />}
-  </group>;
   return <group onClick={select}>
-    <PolygonFloor points={startQuad} color="#c5d3dc" y={WALK_SURFACE_Y - .07} /><PolygonFloor points={startQuad} color={color} y={FLOOR_TOP_Y} />
-    <PolygonFloor points={endQuad} color="#c5d3dc" y={WALK_SURFACE_Y - .07} /><PolygonFloor points={endQuad} color={color} y={FLOOR_TOP_Y} />
-    {startInterior && <PolygonFloor points={startInterior.points} color={color} y={FLOOR_TOP_Y + .002} />}{endInterior && <PolygonFloor points={endInterior.points} color={color} y={FLOOR_TOP_Y + .002} />}
-    <group position={mainCenter} rotation={[0, mainYaw, 0]}>
-      <RoundedBox args={[width + .1, .08, mainLength + .06]} radius={.06} smoothness={2} position={[0, WALK_SURFACE_Y - .16, 0]} renderOrder={2}><meshStandardMaterial color="#c5d3dc" roughness={.75} /></RoundedBox>
-      <RoundedBox args={[Math.max(.2, width - .16), .15, mainLength]} radius={.04} smoothness={2} position={[0, FLOOR_TOP_Y - .075, 0]} renderOrder={4}><meshStandardMaterial color={color} roughness={.7} /></RoundedBox>
-      {[-1, 1].map((side) => <RoundedBox key={side} args={[.1, .48, mainLength]} radius={.035} smoothness={2} position={[side * (width / 2 - .05), FLOOR_TOP_Y + .24, 0]}><meshStandardMaterial color="#f8fafc" roughness={.64} /></RoundedBox>)}
-      <RoundedBox args={[Math.max(.12, width * .18), .02, Math.max(.16, mainLength - .16)]} radius={.012} smoothness={1} position={[0, FLOOR_TOP_Y + .025, 0]} renderOrder={5}><meshStandardMaterial color="#fff7ed" roughness={.55} /></RoundedBox>
-      {selected && <mesh position={[0, .13, 0]}><boxGeometry args={[width + .16, .2, mainLength + .16]} /><meshBasicMaterial color="#e0f2fe" wireframe /></mesh>}
-    </group>
+    <SweepSurface layout={layout} color="#c5d3dc" y={WALK_SURFACE_Y - .07} depth={.08} roughness={.75} />
+    <SweepSurface layout={layout} color={color} y={FLOOR_TOP_Y} roughness={.7} />
+    {layout.wallPaths.map((path, index) => <MiteredCorridorWall key={index} path={path} />)}
+    {selected && <FootprintSelection outline={layout.outline} />}
   </group>;
 }
 
@@ -199,9 +257,7 @@ function SceneContents({ areas, corridors, stairwells, activeFloor, scene, selec
     const width = corridorDisplayWidth(corridor.widthMeters);
     const startPortal = portalPlacement(areaA, worldPosition(areaA, scene, activeFloor, floorView, floors), geometry.start, width, corridor.id, 'start');
     const endPortal = portalPlacement(areaB, worldPosition(areaB, scene, activeFloor, floorView, floors), geometry.end, width, corridor.id, 'end');
-    const startInterior = portalInteriorExtension(areaA, startPortal, geometry.horizontalDirection, width);
-    const endInterior = portalInteriorExtension(areaB, endPortal, [-geometry.horizontalDirection[0], 0, -geometry.horizontalDirection[2]], width);
-    return { corridor, areaA, areaB, geometry, startPortal, endPortal, startInterior, endInterior };
+    return { corridor, areaA, areaB, geometry, startPortal, endPortal };
   }), [renderedCorridors, areaById, scene, activeFloor, floorView, floors, portalOptions]);
   const portalRegistry = useMemo(() => createAreaPortalRegistry(corridorModels.flatMap((model) => [model.startPortal, model.endPortal])), [corridorModels]);
   const junctionColors = useMemo(() => Object.fromEntries(visibleAreas.filter((area) => areaVisualKind(area) === 'junction').map((area) => {
@@ -220,7 +276,7 @@ function SceneContents({ areas, corridors, stairwells, activeFloor, scene, selec
     <RoundedBox args={[footprint.width, .1, footprint.depth]} radius={.18} smoothness={2} position={[footprint.centerX, activeY - .1, footprint.centerZ]}><meshStandardMaterial color="#cbdce1" roughness={.96} /></RoundedBox>
     <Grid args={[gridSize, gridSize]} position={[0, activeY - .02, 0]} cellSize={settings.gridSizeMeters} cellThickness={.14} sectionSize={settings.gridSizeMeters * 5} sectionThickness={.32} cellColor="#c6d3d9" sectionColor="#a0bbca" fadeDistance={gridSize * .64} />
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, activeY - .04, 0]} onClick={(event) => { if (editable && editTool === 'addArea') { const next = planPosition(event.point.x, event.point.z, scene, snap); onAddArea(next.x, next.y, addVisualKind); } else if (editTool !== 'addCorridor') onSelectItem(null); }}><planeGeometry args={[gridSize, gridSize]} /><meshBasicMaterial transparent opacity={0} depthWrite={false} /></mesh>
-    {corridorModels.map((model) => <CorridorBlock key={model.corridor.id} corridor={model.corridor} areaA={model.areaA} areaB={model.areaB} scene={scene} activeFloor={activeFloor} floorView={floorView} floors={floors} metric={edgeMetrics?.[model.corridor.id]} blocked={incidentData?.blockedEdges?.includes(model.corridor.id)} showOperational={simulationStatus === 'running' || simulationStatus === 'stopped'} selected={selectedItem?.type === 'corridor' && selectedItem.data.id === model.corridor.id} onSelect={onSelectItem} portalOptions={portalOptions} startPortal={model.startPortal} endPortal={model.endPortal} startInterior={model.startInterior} endInterior={model.endInterior} />)}
+    {corridorModels.map((model) => <CorridorBlock key={model.corridor.id} corridor={model.corridor} areaA={model.areaA} areaB={model.areaB} scene={scene} activeFloor={activeFloor} floorView={floorView} floors={floors} metric={edgeMetrics?.[model.corridor.id]} blocked={incidentData?.blockedEdges?.includes(model.corridor.id)} showOperational={simulationStatus === 'running' || simulationStatus === 'stopped'} selected={selectedItem?.type === 'corridor' && selectedItem.data.id === model.corridor.id} onSelect={onSelectItem} portalOptions={portalOptions} startPortal={portalRegistry.byEdgeEndpoint[`${model.corridor.id}:start`] || model.startPortal} endPortal={portalRegistry.byEdgeEndpoint[`${model.corridor.id}:end`] || model.endPortal} />)}
     {floorView === 'overview' && wells.map((well) => <StairwellCore key={well.id} well={well} scene={settings} activeFloor={activeFloor} floors={floors} portalOptions={portalOptions} portalDescriptors={portalRegistry.byArea} />)}
     <PeopleDots corridors={renderedCorridors} areasById={areaById} scene={scene} activeFloor={activeFloor} floorView={floorView} floors={floors} metrics={edgeMetrics} occupancyData={occupancyData} simulationStatus={simulationStatus} portalOptions={portalOptions} />
     {visibleAreas.filter((area) => !(floorView === 'overview' && area.type === 'stairs' && area.stairwellId)).map((area) => <AreaBlock key={area.id} area={area} scene={scene} activeFloor={activeFloor} floorView={floorView} floors={floors} selected={selectedItem?.type === 'area' && selectedItem.data.id === area.id} editable={editable && editTool === 'select'} corridorMode={editable && editTool === 'addCorridor'} snap={snap} onSelect={onSelectItem} onMove={onUpdateArea} onStartCorridor={startCorridor} onDragState={setDragging} stairwell={wells.find((well) => well.id === area.stairwellId)} portalOptions={portalOptions} portals={portalRegistry.byArea[area.id] || []} junctionColor={junctionColors[area.id]} />)}

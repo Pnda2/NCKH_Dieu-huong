@@ -1,12 +1,22 @@
 import json
+import json
 import math
 import time
+from pathlib import Path
 
 
 ACK_TIMEOUT_SECONDS = 3.0
 DEVICE_OFFLINE_SECONDS = 12.0
 COMMAND_HEARTBEAT_SECONDS = 5.0
 COMMAND_VALID_SECONDS = 8
+CONTENT_FILE = Path(__file__).with_name("guidance_content.json")
+
+
+def load_content() -> dict:
+    try:
+        return json.loads(CONTENT_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"version": 1, "intents": {}}
 
 
 class GuidanceController:
@@ -21,6 +31,8 @@ class GuidanceController:
         self.pending_acks = {}
         self.last_acks = {}
         self.offline_devices = set()
+        self.capabilities = {}
+        self.content = load_content()
         self.latest_state = {"decisions": {}, "devices": []}
         self._last_state_signature = None
         self._last_state_published_at = 0.0
@@ -45,6 +57,32 @@ class GuidanceController:
             if key in valid_ids
         }
         self.offline_devices.intersection_update(valid_ids)
+        self.capabilities = {key: value for key, value in self.capabilities.items() if key in valid_ids}
+
+    def set_capability(self, device_id, capability):
+        if device_id and isinstance(capability, dict):
+            self.capabilities[device_id] = dict(capability)
+
+    def _presentation(self, device, direction, decision, target_edge, valid_until):
+        intent = self.content.get("intents", {}).get(direction, self.content.get("intents", {}).get("NO_SAFE_ROUTE", {}))
+        occupancy = self._occupancy_ratio((decision or {}).get("k", 1.0))
+        load_level = "blocked" if direction == "NO_SAFE_ROUTE" else "congested" if occupancy >= .8 else "busy" if occupancy >= .5 else "clear"
+        capability = self.capabilities.get(device.get("id"), {})
+        display = capability.get("display", {}) if isinstance(capability.get("display"), dict) else {}
+        profile = device.get("presentationProfile") or "max7219"
+        supports_load = bool(display.get("supports_load_bar")) or profile == "large_display"
+        return {
+            "schema_version": 1,
+            "content_revision": self.content.get("version", 1),
+            "intent": direction,
+            "visual_intent": intent.get("visual_intent", "DO_NOT_ENTER"),
+            "alert_level": intent.get("alert_level", "critical"),
+            "load_level": load_level,
+            "audio_clip_id": intent.get("audio_clip_id", ""),
+            "min_repeat_seconds": intent.get("min_repeat_seconds", 0),
+            "layout": "large_arrow_alert_load" if supports_load else "max7219_arrow_alert",
+            "valid_until": valid_until,
+        }
 
     def _other_area(self, edge, area_id):
         if edge.get("areaA_id") == area_id:
@@ -227,6 +265,9 @@ class GuidanceController:
             "valid_until": int(now) + COMMAND_VALID_SECONDS,
             "priority": "emergency",
         }
+        payload["presentation"] = self._presentation(
+            device, direction, decision, target_edge, payload["valid_until"]
+        )
         topic = device.get("topic") or (
             f"building/guidance/{device_type}/{device_id}"
         )

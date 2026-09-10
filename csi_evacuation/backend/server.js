@@ -260,6 +260,20 @@ async function startServer() {
     res.json({ success: true, message: "Simulation reset signal sent to Pi 5" });
   });
 
+  app.post("/api/simulation/behavior", (req, res) => {
+    const numericFields = ["guidance_compliance", "familiar_route_weight", "follow_crowd_weight", "random_safe_route_weight", "forecast_horizon_seconds", "forecast_lookahead_seconds", "forecast_scenarios", "scenario_seed"];
+    if (!req.body || numericFields.some((field) => req.body[field] !== undefined && !Number.isFinite(Number(req.body[field])))) {
+      return res.status(400).json({ error: "Simulation behavior settings must be finite numbers" });
+    }
+    aedes.publish({
+      topic: "building/simulation/behavior",
+      payload: JSON.stringify(req.body),
+      qos: 1,
+      retain: true,
+    });
+    res.json({ success: true, message: "Simulation behavior settings sent to Pi 5" });
+  });
+
   app.post("/api/occupancy/adjust", (req, res) => {
     const { edge_id, delta } = req.body;
     const numericDelta = Number(delta);

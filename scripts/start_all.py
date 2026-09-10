@@ -58,14 +58,20 @@ def start(name: str, command: list[str], cwd: Path, env: dict[str, str], process
 def stop_all(processes: list[subprocess.Popen]) -> None:
     for process in reversed(processes):
         if process.poll() is None:
-            process.terminate()
+            if os.name == "nt":
+                subprocess.run(["taskkill", "/F", "/T", "/PID", str(process.pid)], capture_output=True)
+            else:
+                process.terminate()
     deadline = time.time() + 5
     for process in processes:
         if process.poll() is None:
             try:
                 process.wait(timeout=max(0.1, deadline - time.time()))
             except subprocess.TimeoutExpired:
-                process.kill()
+                if os.name == "nt":
+                    subprocess.run(["taskkill", "/F", "/T", "/PID", str(process.pid)], capture_output=True)
+                else:
+                    process.kill()
 
 
 def main() -> int:

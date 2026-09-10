@@ -9,14 +9,17 @@ import time
 import paho.mqtt.client as mqtt
 
 from csi_layer import CSILayer
+from behavior import BehaviorConfig, distribute_choices, load_behavior_config
 from dynamic_routing import DynamicEvacuationRouter, WeightParameters, corridor_capacity, corridor_flow_capacity, dynamic_edge_cost
 from evacuation_optimizer import EvacuationOptimizer, OptimizerConfig, OptimizerError, fallback_routes
+from forecasting import ForecastConfig, LoadForecaster
 from guidance_controller import GuidanceController
 
 
 MQTT_BROKER = os.getenv("WIEVAC_MQTT_HOST", "127.0.0.1")
 MQTT_PORT = int(os.getenv("WIEVAC_MQTT_PORT", "1883"))
 CONFIG_FILE = os.path.join(os.path.dirname(__file__), "config.json")
+BEHAVIOR_FILE = os.path.join(os.path.dirname(__file__), "simulation_behavior.json")
 
 # k(e) is the normalized CSI-derived occupancy of corridor e:
 # 0.0 = empty corridor, 1.0 = fully occupied corridor.
@@ -69,6 +72,10 @@ evacuated_load = 0.0
 initial_total_load = 0.0
 measurement_correction = 0.0
 optimizer_status = "fallback"
+latest_forecast = {"version": 1, "edges": {}}
+behavior_config, behavior_settings = load_behavior_config(BEHAVIOR_FILE)
+last_behavior_metrics = {"deviated_load": 0.0, "rejected_unsafe_deviation": 0.0}
+last_movement_by_corridor = {}
 guidance_controller = GuidanceController()
 csi_layer = CSILayer(
     noise_level=0.03,
@@ -105,6 +112,27 @@ def edge_state_snapshot():
         state = result.get(edge_id, {})
         capacity = corridor_capacity(edge, routing_parameters)
         result[edge_id] = {**state, "estimated_load": edge_loads.get(edge_id, 0.0), "capacity": capacity}
+    return result
+
+
+def forecast_config() -> ForecastConfig:
+    return ForecastConfig(
+        horizon_seconds=behavior_settings.get("forecast_horizon_seconds", 60),
+        lookahead_seconds=behavior_settings.get("forecast_lookahead_seconds", 15),
+        scenarios=behavior_settings.get("forecast_scenarios", 20),
+        seed=behavior_settings.get("scenario_seed", 20260813),
+    ).validated()
+
+
+def planning_occupancy(observed: dict[str, dict], forecast: dict) -> dict[str, dict]:
+    """Use forecast P90 for planning while retaining CSI state for observability."""
+    result = {edge_id: dict(state) for edge_id, state in observed.items()}
+    for edge_id, projection in forecast.get("edges", {}).items():
+        state = result.get(edge_id, {})
+        if state.get("status") in {"UNKNOWN", "STALE"}:
+            continue
+        planned = max(clamp_occupancy(state.get("filtered_k", 1.0)), clamp_occupancy(projection.get("planning_k", 1.0)))
+        result[edge_id] = {**state, "planning_k": planned, "filtered_k": planned}
     return result
 
 
@@ -363,6 +391,21 @@ def publish_state(client, status, step, trapped_ids=None, message=None):
                 if item.get("hazard", 0) > 0 or item.get("blocked")
             ),
             "edgeMetrics": metrics,
+            "movementByCorridor": {
+                edge_id: {area_id: round(load, 4) for area_id, load in directions.items()}
+                for edge_id, directions in last_movement_by_corridor.items()
+            },
+            "forecast": latest_forecast,
+            "behavior": {
+                "enabled": behavior_config.enabled,
+                "guidanceCompliance": behavior_config.guidance_compliance,
+                "automaticMix": {
+                    "familiar": round(behavior_config.familiar_route_weight, 3),
+                    "followCrowd": round(behavior_config.follow_crowd_weight, 3),
+                    "randomSafe": round(behavior_config.random_safe_route_weight, 3),
+                },
+                **last_behavior_metrics,
+            },
             "routingAlgorithm": "D* Lite",
             "optimizerStatus": optimizer_status,
             "lastUpdated": int(time.time()),
@@ -388,7 +431,21 @@ def publish_state(client, status, step, trapped_ids=None, message=None):
 def initialize_simulation():
     global edge_occupancy, edge_loads, edge_states, previous_next_edge, previous_route_changed_at, previous_route_decisions
     global simulation_started_at, elapsed_before_pause, simulation_step
-    global evacuated_load, initial_total_load, measurement_correction
+    global evacuated_load, initial_total_load, measurement_correction, behavior_config, behavior_settings, last_movement_by_corridor
+
+    # Operators control only compliance.  Each newly started test run samples
+    # a stable mix of the three non-compliance behaviours.
+    entropy = random.SystemRandom()
+    raw_mix = [entropy.random() for _ in range(3)]
+    mix_total = sum(raw_mix) or 1.0
+    behavior_settings = {
+        **behavior_settings,
+        "enabled": True,
+        "familiar_route_weight": raw_mix[0] / mix_total,
+        "follow_crowd_weight": raw_mix[1] / mix_total,
+        "random_safe_route_weight": raw_mix[2] / mix_total,
+    }
+    behavior_config = BehaviorConfig.from_mapping(behavior_settings)
 
     edge_occupancy = {}
     edge_loads = {}
@@ -410,6 +467,7 @@ def initialize_simulation():
     previous_next_edge = {}
     previous_route_changed_at = {}
     previous_route_decisions = {}
+    last_movement_by_corridor = {}
     evacuated_load = 0.0
     measurement_correction = 0.0
     initial_total_load = sum(edge_loads.values())
@@ -454,11 +512,12 @@ def select_egress_options(edge, exits, distances, route_options):
 
 def advance_loads(edge_map_all, exits, distances, route_options):
     """Apply one simultaneous, flow-limited physical tick in equivalent load units."""
-    global evacuated_load
+    global evacuated_load, last_behavior_metrics, last_movement_by_corridor
     old = dict(edge_loads)
     nxt = dict(old)
     trapped = set()
     intents = []
+    last_behavior_metrics = {"deviated_load": 0.0, "rejected_unsafe_deviation": 0.0}
     area_map = {area["id"]: area for area in map_config.get("areas", [])}
     for edge_id, source_load in old.items():
         if source_load <= OCCUPANCY_EPSILON:
@@ -472,14 +531,24 @@ def advance_loads(edge_map_all, exits, distances, route_options):
         for endpoint, choices, endpoint_share in options:
             requested_endpoint = budget * endpoint_share
             if endpoint in exits:
-                intents.append({"source": edge_id, "target": None, "requested": requested_endpoint})
+                intents.append({"source": edge_id, "endpoint": endpoint, "target": None, "requested": requested_endpoint})
                 continue
-            for choice in choices[:2]:
+            selected_choices, rejected_fraction = distribute_choices(
+                choices[:2], endpoint, behavior_config, random, old
+            )
+            if rejected_fraction:
+                rejected_load = requested_endpoint * rejected_fraction
+                last_behavior_metrics["rejected_unsafe_deviation"] += rejected_load
+                requested_endpoint -= rejected_load
+            for choice, share in selected_choices:
+                base_share = max(0.0, float(choice.get("share", 0.0)))
+                if abs(share - base_share) > 1e-8:
+                    last_behavior_metrics["deviated_load"] += requested_endpoint * abs(share - base_share) / 2.0
                 intents.append({
                     "source": edge_id,
                     "endpoint": endpoint,
                     "target": choice["edge_id"],
-                    "requested": requested_endpoint * choice["share"],
+                    "requested": requested_endpoint * share,
                     "allocation": choice.get("allocated_load"),
                 })
 
@@ -510,10 +579,15 @@ def advance_loads(edge_map_all, exits, distances, route_options):
         for item in group:
             item["accepted"] = item["requested"] * scale
 
+    movement_by_corridor = {}
     for intent in intents:
         accepted = intent.get("accepted", intent["requested"] if intent["target"] is None else 0.0)
         if accepted <= 0:
             continue
+        endpoint = intent.get("endpoint")
+        if endpoint:
+            movement_by_corridor.setdefault(intent["source"], {}).setdefault(endpoint, 0.0)
+            movement_by_corridor[intent["source"]][endpoint] += accepted
         nxt[intent["source"]] = max(0.0, nxt[intent["source"]] - accepted)
         if intent["target"] is None:
             evacuated_load += accepted
@@ -521,11 +595,46 @@ def advance_loads(edge_map_all, exits, distances, route_options):
             nxt[intent["target"]] += accepted
     edge_loads.update(nxt)
     refresh_occupancy_from_loads()
+    last_movement_by_corridor = movement_by_corridor
     return trapped
 
 
+def compute_forecast(edge_map_all, exits, distances, route_options, observed_loads=None):
+    """Project from current CSI-corrected load without allowing forecast drift.
+
+    The transition reuses the physical simulator and restores all live state
+    after every scenario step, so storage/flow safety rules remain identical.
+    """
+    global edge_loads, edge_occupancy, evacuated_load, last_behavior_metrics, last_movement_by_corridor
+    capacities = {edge_id: corridor_capacity(edge, routing_parameters) for edge_id, edge in edge_map_all.items()}
+    forecaster = LoadForecaster(capacities, forecast_config())
+    initial = dict(observed_loads if observed_loads is not None else edge_loads)
+
+    def transition(loads, rng):
+        global edge_loads, edge_occupancy, evacuated_load, last_behavior_metrics, last_movement_by_corridor
+        saved_loads, saved_occupancy = edge_loads, edge_occupancy
+        saved_evacuated, saved_metrics = evacuated_load, last_behavior_metrics
+        saved_movement = last_movement_by_corridor
+        original_random = random
+        try:
+            # distribute_choices accepts the module-level random interface;
+            # swapping it for a seeded scenario keeps the forecast reproducible.
+            globals()["random"] = rng
+            edge_loads = dict(loads)
+            edge_occupancy = {}
+            refresh_occupancy_from_loads()
+            trapped = advance_loads(edge_map_all, exits, distances, route_options)
+            return dict(edge_loads), {**last_behavior_metrics, "trapped": len(trapped)}
+        finally:
+            edge_loads, edge_occupancy = saved_loads, saved_occupancy
+            evacuated_load, last_behavior_metrics, last_movement_by_corridor = saved_evacuated, saved_metrics, saved_movement
+            globals()["random"] = original_random
+
+    return forecaster.project(initial, transition)
+
+
 def simulation_loop(client, resume=False):
-    global simulation_active, evacuated_load, simulation_started_at, simulation_step, edge_states
+    global simulation_active, evacuated_load, simulation_started_at, simulation_step, edge_states, latest_forecast
     areas = map_config.get("areas", [])
     edges = map_config.get("edges", [])
     edge_map_all = {edge["id"]: edge for edge in edges}
@@ -559,8 +668,16 @@ def simulation_loop(client, resume=False):
 
         with state_lock:
             graph, edge_map = build_graph()
+            observed_states = edge_states or edge_state_snapshot()
             exits, distances, route_options = compute_routes(
-                graph, edge_map, edge_states or edge_state_snapshot()
+                graph, edge_map, observed_states
+            )
+            # The first D* Lite pass supplies safe candidate routes. Forecasts
+            # only raise their costs for the second pass; they never invent a
+            # route or overrule a blocked/unknown measurement.
+            latest_forecast = compute_forecast(edge_map_all, exits, distances, route_options)
+            exits, distances, route_options = compute_routes(
+                graph, edge_map, planning_occupancy(observed_states, latest_forecast)
             )
             route_options = optimize_routes(route_options, edge_map_all)
             trapped_ids = advance_loads(edge_map_all, exits, distances, route_options)
@@ -674,7 +791,7 @@ def reset_simulation(client):
     global simulation_active, simulation_thread
     global edge_occupancy, edge_loads, edge_states, previous_next_edge, pending_occupancy_updates
     global latest_sensor_occupancy, simulation_started_at
-    global elapsed_before_pause, simulation_step, evacuated_load, initial_total_load
+    global elapsed_before_pause, simulation_step, evacuated_load, initial_total_load, last_movement_by_corridor
 
     simulation_active = False
     if (
@@ -701,6 +818,7 @@ def reset_simulation(client):
         simulation_step = 0
         evacuated_load = 0.0
         initial_total_load = 0.0
+        last_movement_by_corridor = {}
 
     guidance_controller.stop_all(client)
     client.publish(
@@ -726,12 +844,26 @@ def reset_simulation(client):
 
 def publish_live_guidance(client):
     """Recompute device commands directly from the latest real CSI values."""
+    global latest_forecast
     if not map_config.get("areas") or not map_config.get("edges"):
         return
     occupancy = csi_layer.all_states(edge["id"] for edge in map_config.get("edges", []))
     graph, edge_map = build_graph()
     exits, distances, route_options = compute_routes(
         graph, edge_map, occupancy
+    )
+    all_edges = {edge["id"]: edge for edge in map_config.get("edges", [])}
+    observed_loads = {
+        edge_id: (
+            1.0 if state.get("status") in {"UNKNOWN", "STALE"}
+            else clamp_occupancy(state.get("filtered_k", 1.0))
+        ) * corridor_capacity(all_edges[edge_id], routing_parameters)
+        for edge_id, state in occupancy.items()
+        if edge_id in all_edges
+    }
+    latest_forecast = compute_forecast(all_edges, exits, distances, route_options, observed_loads)
+    exits, distances, route_options = compute_routes(
+        graph, edge_map, planning_occupancy(occupancy, latest_forecast)
     )
     # Real CSI provides no trustworthy area loads for an LP split.  The safe
     # fallback is the single lowest-cost D* Lite route, never a cost-as-share.
@@ -759,18 +891,20 @@ def on_connect(client, userdata, flags, reason_code, properties=None):
         client.subscribe("building/simulation/resume")
         client.subscribe("building/simulation/stop")
         client.subscribe("building/simulation/reset")
+        client.subscribe("building/simulation/behavior")
         client.subscribe("building/occupancy/adjust")
         client.subscribe("building/occupancy/input")
         client.subscribe("building/hazard/adjust")
         client.subscribe("building/incident")
         client.subscribe("building/incident/clear")
         client.subscribe("building/guidance/ack/+")
+        client.subscribe("building/guidance/capabilities/+")
     else:
         print(f"Failed to connect, return code {reason_code}")
 
 
 def on_message(client, userdata, msg):
-    global map_config, simulation_active, simulation_thread, routing_service, edge_states
+    global map_config, simulation_active, simulation_thread, routing_service, edge_states, behavior_config, behavior_settings
     topic = msg.topic
     if topic == "building/config":
         try:
@@ -807,6 +941,27 @@ def on_message(client, userdata, msg):
 
     elif topic == "building/simulation/reset":
         reset_simulation(client)
+
+    elif topic == "building/simulation/behavior":
+        try:
+            incoming = json.loads(msg.payload.decode("utf-8"))
+            if not isinstance(incoming, dict):
+                raise ValueError("behavior_settings_must_be_an_object")
+            behavior_settings = {**behavior_settings, **incoming}
+            behavior_config = BehaviorConfig.from_mapping(behavior_settings)
+            client.publish(
+                "building/simulation/behavior/state",
+                json.dumps({"success": True, "settings": behavior_settings}, ensure_ascii=False),
+                qos=1,
+                retain=True,
+            )
+        except Exception as exc:
+            client.publish(
+                "building/simulation/behavior/state",
+                json.dumps({"success": False, "error": str(exc)}),
+                qos=1,
+                retain=False,
+            )
 
     elif topic == "building/occupancy/input":
         try:
@@ -899,6 +1054,17 @@ def on_message(client, userdata, msg):
                 publish_live_guidance(client)
         except Exception as exc:
             publish_log(client, [make_log("alert", f"Dữ liệu nguy cơ không hợp lệ: {exc}")])
+
+    elif topic.startswith("building/guidance/capabilities/"):
+        try:
+            device_id = topic.rsplit("/", 1)[-1]
+            guidance_controller.set_capability(
+                device_id, json.loads(msg.payload.decode("utf-8"))
+            )
+            if not simulation_active:
+                publish_live_guidance(client)
+        except Exception as exc:
+            print("Error parsing device capability:", exc)
 
     elif topic in ("building/incident", "building/incident/clear"):
         try:

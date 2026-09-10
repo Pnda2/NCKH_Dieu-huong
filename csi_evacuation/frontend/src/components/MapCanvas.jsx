@@ -8,9 +8,9 @@ const MIN_SCALE = 0.45;
 const MAX_SCALE = 2.6;
 
 const AREA_STYLE = {
-  room:   { fill: '#3b82f6', stroke: '#1d4ed8', icon: '■' },
-  stairs: { fill: '#f97316', stroke: '#c2410c', icon: '▲' },
-  exit:   { fill: '#22c55e', stroke: '#15803d', icon: '★' },
+  room:   { fill: '#334155', stroke: '#1e293b', icon: 'ROOM' },
+  stairs: { fill: '#d97706', stroke: '#92400e', icon: 'STAIRS' },
+  exit:   { fill: '#16a34a', stroke: '#14532d', icon: 'EXIT' },
 };
 
 const isJunction = (area) => area?.type === 'room' && area?.visualKind === 'junction';
@@ -50,7 +50,7 @@ function BackgroundImage({ data, mode, onUpdate }) {
   );
 }
 
-function AreaNode({
+const AreaNode = React.memo(function AreaNode({
   area, isSelected, isPendingStart, mode, editTool, isBlocked,
   onSelect, onChange, onStartCorridor, crossFloorLabels, stairCongestion
 }) {
@@ -80,74 +80,122 @@ function AreaNode({
         onChange({ ...area, x: e.target.x(), y: e.target.y() });
       }}
     >
-      {/* Glow ring when selected or pending */}
+      {/* Technical bounding indicator when selected or pending */}
       {(isSelected || isPendingStart) && (
-        <Circle
-          radius={AREA_RADIUS + 10}
-          fill={isPendingStart ? 'rgba(34,197,94,0.25)' : 'rgba(255,255,255,0.2)'}
-          stroke={isPendingStart ? '#22c55e' : '#fff'}
-          strokeWidth={2}
-        />
-      )}
-      {/* Base silhouette: rooms are square, circulation junctions are round. */}
-      {area.type === 'room' && !junction ? <Rect x={-ROOM_HALF - 2} y={-ROOM_HALF - 2} width={(ROOM_HALF + 2) * 2} height={(ROOM_HALF + 2) * 2} cornerRadius={8} fill="rgba(0,0,0,0.2)" offsetY={-2} /> : <Circle radius={AREA_RADIUS + 2} fill="rgba(0,0,0,0.2)" offsetY={-2} />}
-      {/* Main circle */}
-      {mode === 'view' && area.type === 'stairs' && stairCongestion && (
-        <Circle
-          radius={AREA_RADIUS + 6}
-          stroke={stairColor}
-          strokeWidth={4}
-          opacity={0.8}
+        <Rect
+          x={-ROOM_HALF - 6}
+          y={-ROOM_HALF - 6}
+          width={(ROOM_HALF + 6) * 2}
+          height={(ROOM_HALF + 6) * 2}
+          stroke={isPendingStart ? '#16a34a' : '#2563eb'}
+          strokeWidth={1.5}
+          dash={[4, 3]}
+          cornerRadius={4}
           listening={false}
         />
       )}
-      {area.type === 'room' && !junction ? <Rect x={-ROOM_HALF} y={-ROOM_HALF} width={ROOM_HALF * 2} height={ROOM_HALF * 2} cornerRadius={7} fill={isBlocked ? '#64748b' : style.fill} stroke={isSelected ? '#ffffff' : (isBlocked ? '#475569' : style.stroke)} strokeWidth={isSelected ? 3 : 2} /> : <Circle radius={AREA_RADIUS} fill={isBlocked ? '#64748b' : (junction ? '#14b8a6' : style.fill)} stroke={isSelected ? '#ffffff' : (isBlocked ? '#475569' : (stairColor || (junction ? '#0f766e' : style.stroke)))} strokeWidth={isSelected ? 3 : 2} />}
-      {/* Icon */}
-      <Text
-        text={
-          area.type === 'stairs' 
-            ? (crossFloorLabels?.some(l => l.startsWith('▼')) && crossFloorLabels?.some(l => l.startsWith('▲'))) ? '⬍'
-              : (crossFloorLabels?.some(l => l.startsWith('▼')) ? '▼' : '▲')
-            : area.type === 'exit' ? (isBlocked ? '🚫' : '🚪') : junction ? '↔' : '▣'
-        }
-        fontSize={16}
-        fill="white"
-        align="center"
-        verticalAlign="middle"
-        width={AREA_RADIUS * 2}
-        height={AREA_RADIUS * 2}
-        x={-AREA_RADIUS}
-        y={-AREA_RADIUS}
-        listening={false}
-      />
-      {/* Node label */}
+      {/* Subtle crisp base silhouette */}
+      {area.type === 'room' && !junction ? (
+        <Rect
+          x={-ROOM_HALF}
+          y={-ROOM_HALF}
+          width={ROOM_HALF * 2}
+          height={ROOM_HALF * 2}
+          cornerRadius={4}
+          fill={isBlocked ? '#475569' : style.fill}
+          stroke={isSelected ? '#2563eb' : (isBlocked ? '#334155' : style.stroke)}
+          strokeWidth={isSelected ? 2.5 : 1.5}
+        />
+      ) : (
+        <Circle
+          radius={AREA_RADIUS}
+          fill={isBlocked ? '#475569' : (junction ? '#0f766e' : style.fill)}
+          stroke={isSelected ? '#2563eb' : (isBlocked ? '#334155' : (stairColor || (junction ? '#042f2e' : style.stroke)))}
+          strokeWidth={isSelected ? 2.5 : 1.5}
+        />
+      )}
+      {/* Visual Marker / Icon */}
+      {area.type === 'exit' ? (
+        <Group listening={false}>
+          <Rect x={-18} y={-9} width={36} height={18} fill="#14532d" cornerRadius={2} />
+          <Text
+            text={isBlocked ? 'CLOSED' : 'EXIT'}
+            fontSize={9}
+            fontStyle="bold"
+            fontFamily="monospace, sans-serif"
+            fill="#ffffff"
+            align="center"
+            verticalAlign="middle"
+            width={36}
+            height={18}
+            x={-18}
+            y={-9}
+          />
+        </Group>
+      ) : area.type === 'stairs' ? (
+        <Text
+          text={
+            (crossFloorLabels?.some(l => l.startsWith('▼')) && crossFloorLabels?.some(l => l.startsWith('▲'))) ? '⇅'
+              : (crossFloorLabels?.some(l => l.startsWith('▼')) ? '↓' : '↑')
+          }
+          fontSize={15}
+          fontStyle="bold"
+          fill="white"
+          align="center"
+          verticalAlign="middle"
+          width={AREA_RADIUS * 2}
+          height={AREA_RADIUS * 2}
+          x={-AREA_RADIUS}
+          y={-AREA_RADIUS}
+          listening={false}
+        />
+      ) : (
+        <Text
+          text={junction ? '✛' : '■'}
+          fontSize={12}
+          fill="rgba(255,255,255,0.7)"
+          align="center"
+          verticalAlign="middle"
+          width={AREA_RADIUS * 2}
+          height={AREA_RADIUS * 2}
+          x={-AREA_RADIUS}
+          y={-AREA_RADIUS}
+          listening={false}
+        />
+      )}
+      {/* Technical Annotation label */}
       <Rect
-        x={-50}
+        x={-52}
         y={AREA_RADIUS + 4}
-        width={100}
-        height={18}
-        fill="rgba(255,255,255,0.85)"
-        cornerRadius={4}
+        width={104}
+        height={16}
+        fill="rgba(255, 255, 255, 0.95)"
+        stroke="#cbd5e1"
+        strokeWidth={1}
+        cornerRadius={2}
         listening={false}
       />
       <Text
         text={area.name}
-        fontSize={11}
+        fontSize={10}
         fontStyle="bold"
-        fill="#1e293b"
+        fontFamily="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+        fill="#0f172a"
         align="center"
-        width={100}
-        x={-50}
-        y={AREA_RADIUS + 6}
+        verticalAlign="middle"
+        width={104}
+        height={16}
+        x={-52}
+        y={AREA_RADIUS + 4}
         listening={false}
       />
       {/* Cross-floor label for stairs */}
       {crossFloorLabels && crossFloorLabels.length > 0 && (
         <Text
           text={crossFloorLabels.join(' | ')}
-          fontSize={10}
+          fontSize={9}
           fontStyle="bold"
-          fill="#f97316"
+          fill="#b45309"
           align="center"
           width={100}
           x={-50}
@@ -156,24 +204,24 @@ function AreaNode({
         />
       )}
       {mode === 'view' && area.type === 'stairs' && stairCongestion && (
-        <Group y={AREA_RADIUS + 36} listening={false}>
+        <Group y={AREA_RADIUS + 34} listening={false}>
           <Rect
-            x={-58}
-            width={116}
-            height={24}
+            x={-56}
+            width={112}
+            height={20}
             fill={stairCongestion.background}
             stroke={stairColor}
             strokeWidth={1}
-            cornerRadius={7}
+            cornerRadius={3}
           />
           <Text
-            x={-56}
-            y={3}
-            width={112}
-            height={18}
+            x={-54}
+            y={2}
+            width={108}
+            height={16}
             text={stairCongestion.label}
             fill="#ffffff"
-            fontSize={10}
+            fontSize={9}
             fontStyle="bold"
             align="center"
             verticalAlign="middle"
@@ -182,9 +230,9 @@ function AreaNode({
       )}
     </Group>
   );
-}
+});
 
-function CorridorEdge({ corridor, areaA, areaB, isSelected, onSelect, mode, occupancyData, isBlocked, edgeMetric, simulationStatus }) {
+const CorridorEdge = React.memo(function CorridorEdge({ corridor, areaA, areaB, isSelected, onSelect, mode, occupancyData, isBlocked, edgeMetric, simulationStatus }) {
   if (!areaA || !areaB) return null;
 
   const running = simulationStatus === 'running' || simulationStatus === 'stopped';
@@ -192,23 +240,22 @@ function CorridorEdge({ corridor, areaA, areaB, isSelected, onSelect, mode, occu
   const hazard = edgeMetric?.hazard || 0;
 
   // Determine color and thickness
-  let strokeColor, strokeWidth, glowColor;
+  let strokeColor, strokeWidth;
   if (mode === 'view') {
     if (isBlocked || edgeMetric?.blocked || hazard >= 100) {
-      strokeColor = '#64748b'; glowColor = 'transparent'; strokeWidth = 6;
+      strokeColor = '#475569'; strokeWidth = 5;
     } else if (hazard > 0) {
-      strokeColor = '#f97316'; glowColor = 'rgba(249,115,22,0.45)'; strokeWidth = 8;
+      strokeColor = '#ea580c'; strokeWidth = 6;
     } else if (ratio >= 0.8) {
-      strokeColor = '#ef4444'; glowColor = 'rgba(239,68,68,0.4)'; strokeWidth = 8 + ratio * 6;
+      strokeColor = '#dc2626'; strokeWidth = 6 + ratio * 2;
     } else if (ratio >= 0.5) {
-      strokeColor = '#f59e0b'; glowColor = 'rgba(245,158,11,0.4)'; strokeWidth = 6 + ratio * 4;
+      strokeColor = '#d97706'; strokeWidth = 5 + ratio * 2;
     } else {
-      strokeColor = running ? '#22c55e' : '#94a3b8'; glowColor = running ? 'rgba(34,197,94,0.3)' : 'transparent'; strokeWidth = running ? 4 + ratio * 4 : 4;
+      strokeColor = running ? '#16a34a' : '#94a3b8'; strokeWidth = running ? 3.5 + ratio * 2 : 3;
     }
   } else {
-    strokeColor = isSelected ? '#3b82f6' : '#94a3b8';
-    strokeWidth = isSelected ? 5 : 3;
-    glowColor = 'transparent';
+    strokeColor = isSelected ? '#2563eb' : '#94a3b8';
+    strokeWidth = isSelected ? 4 : 2.5;
   }
 
   // Shorten line endpoints to not overlap circles
@@ -231,11 +278,6 @@ function CorridorEdge({ corridor, areaA, areaB, isSelected, onSelect, mode, occu
       {/* Wide invisible hit area */}
       <Line points={[x1, y1, x2, y2]} stroke="transparent" strokeWidth={24} />
 
-      {/* Glow in view mode */}
-      {mode === 'view' && (
-        <Line points={[x1, y1, x2, y2]} stroke={glowColor} strokeWidth={strokeWidth + 6} lineCap="round" />
-      )}
-
       {/* Main line */}
       <Line
         points={[x1, y1, x2, y2]}
@@ -246,22 +288,23 @@ function CorridorEdge({ corridor, areaA, areaB, isSelected, onSelect, mode, occu
       
       {/* Blocked overlay in view mode */}
       {isBlocked && mode === 'view' && (
-        <Line points={[x1, y1, x2, y2]} stroke="#334155" strokeWidth={4} dash={[8, 8]} lineCap="round" />
+        <Line points={[x1, y1, x2, y2]} stroke="#1e293b" strokeWidth={4} dash={[8, 6]} lineCap="round" />
       )}
 
       {/* Selected dashed overlay in edit mode */}
       {isSelected && mode === 'edit' && (
-        <Line points={[x1, y1, x2, y2]} stroke="white" strokeWidth={2} dash={[6, 4]} lineCap="round" opacity={0.6} />
+        <Line points={[x1, y1, x2, y2]} stroke="#ffffff" strokeWidth={1.5} dash={[6, 4]} lineCap="round" opacity={0.8} />
       )}
 
       {/* Fill ratio label in view mode */}
-      {mode === 'view' && running && len > 60 && !isBlocked && (
+      {mode === 'view' && running && len > 50 && !isBlocked && (
         <Group x={midX} y={midY}>
-          <Rect x={-20} y={-11} width={40} height={22} fill="rgba(15,23,42,0.85)" cornerRadius={6} />
+          <Rect x={-17} y={-8} width={34} height={16} fill="#0f172a" stroke="#334155" strokeWidth={1} cornerRadius={2} />
           <Text
-            x={-20} y={-11} width={40} height={22}
-            text={`k ${Math.round(ratio * 100)}%`}
-            fontSize={11}
+            x={-17} y={-8} width={34} height={16}
+            text={`${Math.round(ratio * 100)}%`}
+            fontSize={9}
+            fontFamily="monospace, sans-serif"
             fontStyle="bold"
             fill={ratio >= 0.8 ? '#fca5a5' : ratio >= 0.5 ? '#fcd34d' : '#86efac'}
             align="center"
@@ -272,14 +315,15 @@ function CorridorEdge({ corridor, areaA, areaB, isSelected, onSelect, mode, occu
       )}
 
       {/* Corridor name label in edit mode */}
-      {mode === 'edit' && len > 80 && (
+      {mode === 'edit' && len > 70 && (
         <Group x={midX} y={midY}>
-          <Rect x={-45} y={-11} width={90} height={20} fill="rgba(255,255,255,0.9)" cornerRadius={4} />
+          <Rect x={-40} y={-9} width={80} height={18} fill="rgba(255,255,255,0.95)" stroke="#cbd5e1" strokeWidth={1} cornerRadius={2} />
           <Text
-            x={-45} y={-11} width={90} height={20}
+            x={-40} y={-9} width={80} height={18}
             text={corridor.name}
-            fontSize={10}
-            fill="#475569"
+            fontSize={9}
+            fontStyle="bold"
+            fill="#334155"
             align="center"
             verticalAlign="middle"
             listening={false}
@@ -288,9 +332,9 @@ function CorridorEdge({ corridor, areaA, areaB, isSelected, onSelect, mode, occu
       )}
     </Group>
   );
-}
+});
 
-function GuidanceArrow({ area, otherArea, probability, occupancy = 0, isBlocked = false }) {
+const GuidanceArrow = React.memo(function GuidanceArrow({ area, otherArea, probability, occupancy = 0, isBlocked = false }) {
   if (!area || !otherArea || area.floor !== otherArea.floor) return null;
   const dx = otherArea.x - area.x;
   const dy = otherArea.y - area.y;
@@ -303,19 +347,19 @@ function GuidanceArrow({ area, otherArea, probability, occupancy = 0, isBlocked 
   if (usableLength < 22) return null;
 
   const arrowColor = isBlocked
-    ? '#64748b'
-    : occupancy >= 0.8
-      ? '#ef4444'
-      : occupancy >= 0.5
-        ? '#f59e0b'
-        : '#22c55e';
-  const labelColor = isBlocked
     ? '#475569'
     : occupancy >= 0.8
-      ? '#b91c1c'
+      ? '#dc2626'
       : occupancy >= 0.5
-        ? '#b45309'
-        : '#15803d';
+        ? '#d97706'
+        : '#16a34a';
+  const labelColor = isBlocked
+    ? '#334155'
+    : occupancy >= 0.8
+      ? '#991b1b'
+      : occupancy >= 0.5
+        ? '#92400e'
+        : '#14532d';
   const arrowLength = Math.min(52, usableLength - 4);
   const starts = usableLength >= 145
     ? [
@@ -367,9 +411,9 @@ function GuidanceArrow({ area, otherArea, probability, occupancy = 0, isBlocked 
       />
     </Group>
   );
-}
+});
 
-function DeviceMarker({ device, area, index, liveState }) {
+const DeviceMarker = React.memo(function DeviceMarker({ device, area, index, liveState }) {
   if (!area) return null;
   const status = liveState?.status || 'idle';
   const statusColor = status === 'online'
@@ -388,7 +432,7 @@ function DeviceMarker({ device, area, index, liveState }) {
       <Circle x={8} y={-8} radius={3.5} fill={statusColor} stroke="white" strokeWidth={1} />
     </Group>
   );
-}
+});
 
 export default function MapCanvas({
   mode, editTool,
@@ -616,12 +660,20 @@ export default function MapCanvas({
         scaleX={stageScale}
         scaleY={stageScale}
         draggable={editTool === 'select' || mode === 'view'}
+        onDragStart={(e) => {
+          if (e.target === stageRef.current && containerRef.current) {
+            containerRef.current.style.cursor = 'grabbing';
+          }
+        }}
         onDragMove={(e) => {
           if (e.target === stageRef.current) {
             stagePosRef.current = { x: e.target.x(), y: e.target.y() };
           }
         }}
         onDragEnd={(e) => {
+          if (containerRef.current) {
+            containerRef.current.style.cursor = editTool === 'select' || mode === 'view' ? 'grab' : 'default';
+          }
           if (e.target === stageRef.current) {
             const nextPos = { x: e.target.x(), y: e.target.y() };
             stagePosRef.current = nextPos;
@@ -739,23 +791,24 @@ export default function MapCanvas({
         </Layer>
       </Stage>
 
-      <div className="absolute right-4 top-4 flex flex-col gap-1 rounded-xl border border-slate-700 bg-slate-950/90 p-1.5 shadow-xl">
-        <button type="button" onClick={() => zoomAtCenter(1.2)} aria-label="Phóng to bản đồ" className="map-control">+</button>
-        <button type="button" onClick={() => zoomAtCenter(1 / 1.2)} aria-label="Thu nhỏ bản đồ" className="map-control">−</button>
-        <button type="button" onClick={fitToMap} aria-label="Căn vừa sơ đồ" className="map-control map-control-fit">Fit</button>
-        <button type="button" onClick={() => setViewport(1, { x: 0, y: 0 })} aria-label="Đặt lại góc nhìn" className="map-control map-control-fit">1:1</button>
+      <div className="absolute right-3 top-3 map-control-group">
+        <button type="button" onClick={() => zoomAtCenter(1.2)} aria-label="Phóng to" className="map-control" title="Phóng to">+</button>
+        <button type="button" onClick={() => zoomAtCenter(1 / 1.2)} aria-label="Thu nhỏ" className="map-control" title="Thu nhỏ">−</button>
+        <button type="button" onClick={fitToMap} aria-label="Căn vừa sơ đồ" className="map-control map-control-fit" title="Căn vừa sơ đồ">FIT</button>
+        <button type="button" onClick={() => setViewport(1, { x: 0, y: 0 })} aria-label="Tỷ lệ 1:1" className="map-control map-control-fit" title="Tỷ lệ 1:1">1:1</button>
       </div>
 
       {/* Pending start hint */}
       {pendingStart && (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-green-600 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg pointer-events-none">
-          Đã chọn "{pendingStart.name}" — Click khu vực đích để vẽ hành lang
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-slate-900 border border-emerald-500/80 text-emerald-300 text-xs font-medium px-3 py-1.5 rounded shadow pointer-events-none flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+          <span>Đã chọn <strong>{pendingStart.name}</strong> — Click khu vực đích để nối hành lang</span>
         </div>
       )}
       
       {/* Zoom / Pan Instructions overlay */}
-      <div className="absolute bottom-4 left-4 bg-slate-950/90 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-700 text-xs text-slate-300 shadow-sm pointer-events-none">
-        Cuộn chuột để thu/phóng · Kéo nền để di chuyển · {Math.round(stageScale * 100)}%
+      <div className="absolute bottom-3 left-3 bg-slate-900/90 px-2.5 py-1 rounded border border-slate-700/80 text-[11px] text-slate-400 font-mono pointer-events-none">
+        ZOOM: {Math.round(stageScale * 100)}% · CUỘN/KÉO ĐỂ DI CHUYỂN
       </div>
     </div>
   );

@@ -1210,8 +1210,9 @@
       "orientation": 0,
       "topic": "building/guidance/sign/sign_p10_01",
       "edgeDirections": {
-        "corr_1788183099728_351y9bdgj": "LEFT",
-        "e_1788183434485": "BACK"
+        "corr_1788183099728_351y9bdgj": "RIGHT",
+        "e_1788183434485": "STRAIGHT",
+        "corr_1788183099728_dmbe9b6ar": "BACK"
       }
     }
   ],

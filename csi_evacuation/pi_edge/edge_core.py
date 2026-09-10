@@ -849,6 +849,8 @@ def publish_live_guidance(client):
     global latest_forecast
     if not map_config.get("areas") or not map_config.get("edges"):
         return
+    if simulation_active or simulation_step > 0 or elapsed_before_pause > 0:
+        return
     occupancy = csi_layer.all_states(edge["id"] for edge in map_config.get("edges", []))
     graph, edge_map = build_graph()
     exits, distances, route_options = compute_routes(
@@ -1125,8 +1127,6 @@ def on_message(client, userdata, msg):
             guidance_controller.handle_ack(
                 json.loads(msg.payload.decode("utf-8"))
             )
-            if not simulation_active:
-                publish_live_guidance(client)
         except Exception as exc:
             print("Error parsing guidance ACK:", exc)
 

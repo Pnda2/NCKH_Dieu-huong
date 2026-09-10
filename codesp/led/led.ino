@@ -238,16 +238,20 @@ void processSignCommand(JsonObject& doc) {
     // Chế độ 1 hướng đơn rõ ràng (theo lệnh chính của D* Lite)
     gState.isJunction = false;
 
-    if (gState.command == "STANDBY" || !gState.simRunning) {
+    if (gState.command == "STANDBY") {
       gState.mode = MODE_STANDBY;
     } else if (gState.command == "BACK" || gState.command == "TURN_BACK") {
       gState.mode = MODE_TURN_BACK;
+      gState.simRunning = true;
     } else if (gState.command == "DO_NOT_ENTER" || gState.command == "NO_SAFE_ROUTE") {
       gState.mode = MODE_BLOCKED;
+      gState.simRunning = true;
     } else if (gState.command == "EXIT") {
       gState.mode = MODE_EXIT;
+      gState.simRunning = true;
     } else {
       gState.mode = MODE_SINGLE_ARROW;
+      gState.simRunning = true;
     }
   }
 
@@ -277,15 +281,16 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
   }
 
   // 2. Tín hiệu đồng bộ mô phỏng
-  if (strTopic == "building/simulation/start") {
+  if (strTopic == "building/simulation/start" || strTopic == "building/simulation/resume") {
     gState.simRunning = true;
-    Serial.println("[WiEvac] Bat dau gia lap thoat hiem.");
+    Serial.println("[WiEvac] Bat dau / Tiep tuc gia lap.");
   } else if (strTopic == "building/simulation/stop") {
     gState.simRunning = false;
     Serial.println("[WiEvac] Dung gia lap (tam dung giu nguyen man hinh).");
   } else if (strTopic == "building/simulation/reset") {
     gState.simRunning = false;
     gState.mode = MODE_STANDBY;
+    gState.command = "STANDBY";
     Serial.println("[WiEvac] Reset gia lap -> Ve che do Standby.");
   } else if (strTopic == "building/simulation/state") {
     const char* status = doc["status"] | "idle";
@@ -294,6 +299,7 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
     } else if (!strcmp(status, "idle")) {
       gState.simRunning = false;
       gState.mode = MODE_STANDBY;
+      gState.command = "STANDBY";
     } else if (!strcmp(status, "stopped")) {
       gState.simRunning = false;
     }
@@ -334,6 +340,7 @@ void checkMqttConnection() {
 
     // Lắng nghe trạng thái mô phỏng
     mqttClient.subscribe("building/simulation/start", 0);
+    mqttClient.subscribe("building/simulation/resume", 0);
     mqttClient.subscribe("building/simulation/stop", 0);
     mqttClient.subscribe("building/simulation/reset", 0);
     mqttClient.subscribe("building/simulation/state", 0);
@@ -386,20 +393,26 @@ void drawStreamingArrowRight(uint16_t color, uint8_t offset) {
   }
 }
 
-// Vẽ mũi tên Đi Thẳng (hướng lên)
+// Vẽ mũi tên Đi Thẳng (hướng lên trên)
+// Thiết kế mũi tên chuẩn thoát hiểm: đầu nhọn hướng lên, cánh vát xuôi xuống, thân thẳng cân đối tuyệt đối
 void drawStreamingArrowUp(uint16_t color, uint8_t offset) {
-  int cy = (offset % 6);
-  // Thân mũi tên
-  dma_display->fillRect(14, 6, 4, 9, color);
-  // Đầu mũi tên ^
-  for (int i = 0; i < 7; i++) {
-    dma_display->drawPixel(15 - i, 7 - (i / 2), color);
-    dma_display->drawPixel(16 + i, 7 - (i / 2), color);
-  }
-  // Hiệu ứng sóng đẩy lên
-  int waveY = 14 - (cy * 2);
-  if (waveY >= 0 && waveY < 16) {
-    dma_display->drawFastHLine(12, waveY, 8, CLR_WHITE);
+  // 1. Đầu mũi tên hình tam giác đặc sắc nét (đỉnh tại Y=1, đáy tại Y=7, rộng 14 pixel từ X=9 đến X=22)
+  dma_display->fillTriangle(15, 1, 9, 7, 15, 7, color);
+  dma_display->fillTriangle(16, 1, 22, 7, 16, 7, color);
+
+  // 2. Thân mũi tên (cột 14..17, từ hàng 7 đến hàng 15)
+  dma_display->fillRect(14, 7, 4, 9, color);
+
+  // 3. Luồng sáng trắng chuyển động hướng lên (wave pulse đẩy từ chân lên đỉnh mũi tên)
+  int pulse = (offset % 8);
+  int waveY = 14 - (pulse * 2);
+  if (waveY >= 7 && waveY <= 14) {
+    // Vệt sáng trong thân mũi tên
+    dma_display->fillRect(14, waveY, 4, 2, CLR_WHITE);
+  } else if (waveY >= 1 && waveY < 7) {
+    // Vệt sáng mở rộng theo hình nón khi lan lên đầu mũi tên
+    int dx = waveY - 1;
+    dma_display->fillRect(15 - dx, waveY, (dx * 2) + 2, 2, CLR_WHITE);
   }
 }
 
@@ -558,25 +571,33 @@ void drawJunctionComparison(uint8_t step, bool blink) {
 }
 
 // Vẽ chế độ CHỜ (STANDBY / SẴN SÀNG)
+// Căn giữa 2 dòng tuyệt đối: WI (hàng trên Cyan) + EVAC (hàng dưới Xanh lá)
+// Chữ không bao giờ bị rớt dòng hay mất chữ 'C'
 void drawStandbyScreen(uint8_t step) {
-  // Chữ WiEvac cách điệu ở giữa
+  // 1. Dòng 1: "WI" (X: 10, Y: 1)
   dma_display->setTextColor(CLR_CYAN);
   dma_display->setTextSize(1);
-  dma_display->setCursor(2, 4);
-  dma_display->print("WiEvac");
+  dma_display->setCursor(10, 1);
+  dma_display->print("WI");
 
-  // Đèn báo kết nối mạng ở góc trên bên phải
+  // 2. Dòng 2: "EVAC" (X: 4, Y: 9)
+  dma_display->setTextColor(CLR_GREEN);
+  dma_display->setCursor(4, 9);
+  dma_display->print("EVAC");
+
+  // 3. Đèn báo kết nối mạng ở góc trên bên phải
   bool wifiOk = (WiFi.status() == WL_CONNECTED);
   bool mqttOk = mqttClient.connected();
 
-  // Pixel WiFi (X: 29, Y: 1)
-  dma_display->drawPixel(29, 1, wifiOk ? CLR_GREEN : CLR_RED);
-  // Pixel MQTT (X: 30, Y: 1)
+  // Đèn WiFi tại (28, 1), Đèn MQTT tại (30, 1)
+  dma_display->drawPixel(28, 1, wifiOk ? CLR_GREEN : CLR_RED);
   dma_display->drawPixel(30, 1, mqttOk ? CLR_CYAN : CLR_RED);
 
-  // Radar quét nhẹ ở hàng đáy báo hệ thống đang online
-  int radarX = (step % 32);
-  dma_display->drawPixel(radarX, 15, CLR_CYAN);
+  // 4. Radar nhấp nháy nhẹ ở góc màn hình báo hiệu đang online
+  if ((step / 8) % 2 == 0) {
+    dma_display->drawPixel(1, 1, CLR_CYAN);
+    dma_display->drawPixel(1, 14, CLR_GREEN);
+  }
 }
 
 // ========================================================================================

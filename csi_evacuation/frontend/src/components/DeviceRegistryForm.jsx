@@ -127,30 +127,35 @@ export default function DeviceRegistryForm({
             </div>
 
             {device.type === 'sign' && connectedCorridors.length > 0 && (
-              <div className="space-y-1 pt-1 border-t border-slate-800/80">
-                <div className="text-[9px] uppercase text-slate-400 font-bold tracking-wider">Ánh xạ hướng vật lý</div>
-                {connectedCorridors.map(corridor => (
-                  <div key={corridor.id} className="flex items-center gap-2">
-                    <span className="flex-1 truncate text-xs text-slate-300" title={corridor.name}>
-                      → {otherAreaName(corridor)}
-                    </span>
-                    <select
-                      value={device.edgeDirections?.[corridor.id] || 'STRAIGHT'}
-                      onChange={event => onUpdate({
-                        ...device,
-                        edgeDirections: {
-                          ...(device.edgeDirections || {}),
-                          [corridor.id]: event.target.value,
-                        },
-                      })}
-                      className="bg-slate-800 text-white rounded px-1.5 py-1 text-xs font-mono border border-slate-700 focus:border-blue-500 focus:outline-none"
-                    >
-                      {DIRECTIONS.map(([value, label]) => (
-                        <option key={value} value={value}>{label}</option>
-                      ))}
-                    </select>
-                  </div>
-                ))}
+              <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                <div className="flex items-center justify-between">
+                  <div className="text-[10px] uppercase text-cyan-400 font-bold tracking-wider">Ánh xạ hướng vật lý</div>
+                  <span className="text-[9px] text-slate-500 font-mono">Mũi tên trên LED</span>
+                </div>
+                <div className="space-y-2">
+                  {connectedCorridors.map(corridor => (
+                    <div key={corridor.id} className="p-2 rounded bg-slate-900 border border-slate-800 space-y-1.5">
+                      <div className="text-xs text-slate-300">
+                        → Đi đến: <strong className="text-cyan-300">{otherAreaName(corridor)}</strong>
+                      </div>
+                      <select
+                        value={device.edgeDirections?.[corridor.id] || 'STRAIGHT'}
+                        onChange={event => onUpdate({
+                          ...device,
+                          edgeDirections: {
+                            ...(device.edgeDirections || {}),
+                            [corridor.id]: event.target.value,
+                          },
+                        })}
+                        className="w-full bg-slate-800 text-white rounded px-2 py-1.5 text-xs font-mono border border-slate-700 focus:border-blue-500 focus:outline-none cursor-pointer"
+                      >
+                        {DIRECTIONS.map(([value, label]) => (
+                          <option key={value} value={value}>{label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 

@@ -797,7 +797,7 @@ function App() {
                 {criticalCount > 0 && (
                   <span className="text-red-400 font-semibold flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
-                    <span>{criticalCount} HL QUÁ TẢI (≥80%)</span>
+                    <span>{criticalCount} HL KÉM THÔNG THOÁNG (≥80%)</span>
                   </span>
                 )}
               </div>
@@ -865,10 +865,10 @@ function App() {
             {/* Legend */}
             {mode === 'view' && (
               <div className="absolute bottom-3 right-3 bg-slate-900/90 border border-slate-700/80 px-3 py-1.5 rounded text-[11px] text-slate-300 flex items-center gap-3 font-mono shadow-sm pointer-events-none">
-                <span className="text-slate-400 uppercase font-semibold">Tải hành lang:</span>
-                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" /><span>Thấp</span></span>
+                <span className="text-slate-400 uppercase font-semibold">Độ thông thoáng:</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" /><span>Cao</span></span>
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-amber-500 inline-block" /><span>Vừa</span></span>
-                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-red-600 inline-block" /><span>Cao</span></span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-red-600 inline-block" /><span>Thấp</span></span>
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-slate-600 inline-block" /><span>Phong tỏa</span></span>
               </div>
             )}
@@ -984,7 +984,7 @@ function App() {
                     <div className="text-sm font-bold text-white mt-0.5">{formatDuration(simulationState.elapsedSeconds)}</div>
                   </div>
                   <div className="bg-slate-800/80 border border-slate-700/60 rounded p-2">
-                    <div className="text-slate-400 text-[10px]">HÀNH LANG CÒN TẢI</div>
+                    <div className="text-slate-400 text-[10px]">HL CÒN THÔNG THOÁNG</div>
                     <div className="text-sm font-bold text-amber-400 mt-0.5">{simulationState.occupiedCorridors || 0}</div>
                   </div>
                   <div className="bg-slate-800/80 border border-slate-700/60 rounded p-2">
@@ -1126,9 +1126,9 @@ function App() {
                           text: 'text-red-400',
                           border: 'border-red-600/60',
                           bg: 'bg-red-950/30',
-                          title: 'QUÁ TẢI',
-                          desc: 'Lưu lượng vượt ngưỡng an toàn, nguy cơ ùn ứ.',
-                          advice: 'Mật độ cao. Hệ thống đang tự động phân luồng sang hành lang còn thông thoáng.'
+                          title: 'KÉM THÔNG THOÁNG',
+                          desc: 'Độ thông thoáng thấp, lưu lượng vượt ngưỡng an toàn.',
+                          advice: 'Hành lang kém thông thoáng. Hệ thống đang tự động phân luồng sang hành lang thông thoáng hơn.'
                         }
                         : ratio >= 0.5
                           ? {
@@ -1136,17 +1136,17 @@ function App() {
                             text: 'text-amber-400',
                             border: 'border-amber-600/60',
                             bg: 'bg-amber-950/30',
-                            title: 'CẦN LƯU Ý',
-                            desc: 'Mật độ đang tăng nhưng vẫn lưu thông.',
-                            advice: 'Lưu lượng ổn định, đang được hệ thống điều tiết nhịp nhàng.'
+                            title: 'THÔNG THOÁNG VỪA',
+                            desc: 'Mật độ đang tăng nhưng vẫn lưu thông ổn định.',
+                            advice: 'Độ thông thoáng ổn định, đang được hệ thống điều tiết nhịp nhàng.'
                           }
                           : {
                             dot: 'bg-emerald-400',
                             text: 'text-emerald-400',
                             border: 'border-emerald-600/60',
                             bg: 'bg-emerald-950/30',
-                            title: 'THÔNG THOÁNG',
-                            desc: 'Lưu lượng an toàn, sẵn sàng đón tải.',
+                            title: 'THÔNG THOÁNG TỐT',
+                            desc: 'Hành lang thông thoáng, lưu thông an toàn.',
                             advice: 'Hành lang thông thoáng, đảm bảo khả năng sơ tán tiêu chuẩn.'
                           };
 
@@ -1193,14 +1193,14 @@ function App() {
                         {/* 3. Metrics Matrix */}
                         <div className="grid grid-cols-2 gap-1.5 font-mono">
                           <div className="bg-slate-950/60 rounded border border-slate-800 p-2">
-                            <div className="text-slate-400 text-[10px]">MẬT ĐỘ TẢI</div>
+                            <div className="text-slate-400 text-[10px]">MẬT ĐỘ LẤP ĐẦY</div>
                             <div className={`text-xl font-bold mt-0.5 ${isBlocked || ratio >= 0.8 ? 'text-red-400' : ratio >= 0.5 ? 'text-amber-400' : 'text-emerald-400'
                               }`}>
                               {densityPct}%
                             </div>
                           </div>
                           <div className="bg-slate-950/60 rounded border border-slate-800 p-2">
-                            <div className="text-slate-400 text-[10px]">TẢI QUY ĐỔI</div>
+                            <div className="text-slate-400 text-[10px]">SỐ NGƯỜI QUY ĐỔI</div>
                             <div className="text-xl font-bold text-white mt-0.5">
                               {curPeople} <span className="text-[10px] font-normal text-slate-400">/ {capPeople}</span>
                             </div>
@@ -1280,7 +1280,7 @@ function App() {
                                 const valueAt = (seconds) => Math.round((forecast.median?.[seconds - 1] ?? 0) * 100);
                                 return (
                                   <div className="pt-2">
-                                    <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Dự báo tải (60s tới)</div>
+                                    <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Dự báo thông thoáng (60s tới)</div>
                                     <div className="grid grid-cols-3 gap-1 text-center">
                                       <div className="bg-slate-900 rounded p-1 border border-slate-800">
                                         <div className="text-[9px] text-slate-500">15s</div>
@@ -1307,12 +1307,12 @@ function App() {
                                     disabled={simulationState.status !== 'running'}
                                     onClick={() => handleAdjustOccupancy(corridor.id, -densityStep)}
                                     className="flex-1 py-1 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-white font-medium cursor-pointer text-xs border border-slate-700"
-                                  >− Giảm tải</button>
+                                  >+ Tăng độ thoáng</button>
                                   <button
                                     disabled={simulationState.status !== 'running'}
                                     onClick={() => handleAdjustOccupancy(corridor.id, densityStep)}
                                     className="flex-1 py-1 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-30 text-white font-medium cursor-pointer text-xs border border-blue-600"
-                                  >+ Tăng tải</button>
+                                  >− Giảm độ thoáng</button>
                                 </div>
                                 <div className="pt-1 space-y-0.5">
                                   <div className="flex justify-between text-[10px]">
@@ -1493,7 +1493,7 @@ function App() {
                               <span className={
                                 floorStatus === 'red' ? 'text-red-400 font-semibold' : floorStatus === 'yellow' ? 'text-amber-400 font-semibold' : 'text-emerald-400 font-semibold'
                               }>
-                                {floorStatus === 'red' ? 'NGUY CƠ' : floorStatus === 'yellow' ? 'CÓ TẢI' : 'AN TOÀN'}
+                                {floorStatus === 'red' ? 'NGUY CƠ' : floorStatus === 'yellow' ? 'TRUNG BÌNH' : 'THÔNG THOÁNG'}
                               </span>
                             </span>
                           </div>

@@ -299,7 +299,7 @@ export default function CorridorEdgeForm({ corridor, areas, onChange, onDelete }
             </summary>
             <div className="mt-1 p-2 bg-slate-950/70 border border-slate-800 rounded text-[10px] text-slate-400 leading-normal space-y-1">
               <p>• Khi để trống, hệ thống tự ước tính = <strong>Độ rộng ({widthMeters}m) × 1.3 người/m/s</strong> {isStair && '× 0.75 (hệ số cầu thang)'} ≈ <strong>{autoFlow} người/giây</strong>.</p>
-              <p>• CSI cung cấp tải chuẩn hóa liên tục để điều phối luồng, không nhầm lẫn với số người đếm tuyệt đối.</p>
+              <p>• CSI cung cấp độ thông thoáng chuẩn hóa liên tục để điều phối luồng, không nhầm lẫn với số người đếm tuyệt đối.</p>
             </div>
           </details>
         </div>
@@ -320,7 +320,7 @@ export default function CorridorEdgeForm({ corridor, areas, onChange, onDelete }
             <span className="text-slate-400 text-xs font-mono whitespace-nowrap">người</span>
           </div>
           <p className="text-[10px] text-slate-500 mt-0.5">
-            Số người tối đa trước khi hành lang chạm ngưỡng nghẽn tải.
+            Số người tối đa trước khi hành lang chạm ngưỡng nghẽn, mất độ thông thoáng.
           </p>
         </div>
 

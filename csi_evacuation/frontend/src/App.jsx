@@ -1391,10 +1391,19 @@ function App() {
                         </div>
                       )}
 
-                      {/* Loa và bảng hiệu */}
-                      {devices.some(device => device.area_id === selectedItem.data.id) && (
-                        <div className="space-y-1.5">
-                          <div className="text-slate-400 text-[10px] font-mono uppercase font-semibold">Thiết bị chấp hành</div>
+                      {/* Loa và bảng hiệu điều phối tại chỗ */}
+                      {devices.some(device => device.area_id === selectedItem.data.id) ? (
+                        <div className="space-y-1.5 pt-2 border-t border-slate-800">
+                          <div className="flex items-center justify-between">
+                            <div className="text-slate-400 text-[10px] font-mono uppercase font-semibold">Thiết bị điều phối tại chỗ</div>
+                            <button
+                              type="button"
+                              onClick={() => setMode('edit')}
+                              className="text-[10px] font-mono text-blue-400 hover:text-blue-300 underline cursor-pointer"
+                            >
+                              Sửa / Thêm
+                            </button>
+                          </div>
                           {devices.filter(device => device.area_id === selectedItem.data.id).map(device => {
                             const live = (guidanceState.devices || []).find(item => item.id === device.id);
                             const statusColor = live?.status === 'online' ? 'text-emerald-400' : live?.status === 'offline' ? 'text-red-400' : 'text-amber-400';
@@ -1410,6 +1419,22 @@ function App() {
                               </div>
                             );
                           })}
+                        </div>
+                      ) : (
+                        <div className="p-2.5 rounded bg-slate-950/60 border border-slate-800 space-y-1.5 pt-2 border-t border-slate-800">
+                          <div className="flex items-center justify-between">
+                            <div className="text-slate-400 text-[10px] font-mono uppercase font-semibold">Thiết bị điều phối tại chỗ</div>
+                            <button
+                              type="button"
+                              onClick={() => setMode('edit')}
+                              className="px-2 py-0.5 text-[10px] font-mono bg-blue-700 hover:bg-blue-600 text-white rounded font-medium transition-colors cursor-pointer"
+                            >
+                              + Thêm thiết bị
+                            </button>
+                          </div>
+                          <p className="text-[11px] text-slate-500 font-mono">
+                            Chưa gán thiết bị IoT điều hướng tại nút này. Nhấn nút trên để chuyển sang chế độ Thiết kế.
+                          </p>
                         </div>
                       )}
 

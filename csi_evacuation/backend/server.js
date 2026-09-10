@@ -251,6 +251,17 @@ async function startServer() {
 
   app.post("/api/simulate/reset", (req, res) => {
     simulationRunning = false;
+    io.emit("simulation_state", {
+      status: "idle",
+      step: 0,
+      elapsedSeconds: 0,
+      occupiedCorridors: 0,
+      availableExits: 0,
+      hazardousCorridors: 0,
+      edgeOccupancy: {},
+      trappedCorridors: [],
+      message: "Đã reset mô phỏng",
+    });
     aedes.publish({
       topic: "building/simulation/reset",
       payload: JSON.stringify({ action: "reset" }),

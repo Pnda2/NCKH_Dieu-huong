@@ -72,7 +72,11 @@ function App() {
     if (pendingSimStateRef.current) {
       const data = pendingSimStateRef.current;
       pendingSimStateRef.current = null;
-      setSimulationState(data);
+      setSimulationState(prev => ({
+        ...prev,
+        ...data,
+        status: data.status || prev.status || 'idle',
+      }));
       if (data?.status === 'running') {
         setMode('view');
         setEditTool('select');
@@ -150,11 +154,10 @@ function App() {
     });
     newSocket.on('occupancy_state', (data) => {
       if (data?.edgeMetrics) {
-        pendingSimStateRef.current = {
-          ...(pendingSimStateRef.current || {}),
+        setSimulationState(prev => ({
+          ...prev,
           edgeMetrics: data.edgeMetrics,
-        };
-        if (!rafIdRef.current) rafIdRef.current = requestAnimationFrame(flushTelemetry);
+        }));
       }
     });
 
@@ -469,7 +472,19 @@ function App() {
     pendingGuidanceRef.current = null;
     setOccupancyData({});
     setGuidanceState({ decisions: {}, devices: [] });
-    setSimulationState(prev => ({ ...prev, status: 'idle', edgeOccupancy: {}, edgeMetrics: {}, forecast: null }));
+    setSimulationState(prev => ({
+      ...prev,
+      status: 'idle',
+      step: 0,
+      elapsedSeconds: 0,
+      occupiedCorridors: 0,
+      availableExits: 0,
+      hazardousCorridors: 0,
+      edgeOccupancy: {},
+      trappedCorridors: [],
+      edgeMetrics: {},
+      forecast: null,
+    }));
 
     fetch(`${SERVER_URL}/api/simulate/reset`, { method: 'POST' })
       .then(async res => {
@@ -562,16 +577,16 @@ function App() {
   const simulationStatusLabel = {
     idle: 'Chưa chạy', running: 'Đang chạy', stopped: 'Đã dừng',
     completed: 'Hoàn thành', trapped: 'Có hành lang mắc kẹt', error: 'Lỗi',
-  }[simulationState.status] || simulationState.status;
+  }[simulationState.status || 'idle'] || 'Chưa chạy';
 
   return (
     <div className="eoc-shell h-screen bg-slate-950 flex flex-col overflow-hidden text-slate-100" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
       {notice && (
         <div role="status" className={`fixed z-50 right-4 top-4 max-w-sm rounded border px-3.5 py-2.5 text-xs shadow-lg font-mono ${notice.tone === 'danger'
-            ? 'border-red-600/80 bg-red-950 text-red-200'
-            : notice.tone === 'success'
-              ? 'border-emerald-600/80 bg-emerald-950 text-emerald-200'
-              : 'border-slate-700 bg-slate-900 text-slate-200'
+          ? 'border-red-600/80 bg-red-950 text-red-200'
+          : notice.tone === 'success'
+            ? 'border-emerald-600/80 bg-emerald-950 text-emerald-200'
+            : 'border-slate-700 bg-slate-900 text-slate-200'
           }`}>
           <div className="flex items-start gap-2.5">
             <span className="font-bold uppercase tracking-wider">{notice.tone === 'danger' ? '[ALERT]' : notice.tone === 'success' ? '[SAVED]' : '[INFO]'}</span>
@@ -651,7 +666,7 @@ function App() {
         <div className="flex items-center gap-1.5">
           <button
             onClick={handleStartSimulation}
-            disabled={!['idle', 'stopped'].includes(simulationState.status)}
+            disabled={simulationState.status === 'running'}
             className="px-3 py-1.5 rounded font-medium text-xs bg-blue-700 hover:bg-blue-600 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed text-white transition-colors flex items-center gap-1.5 shadow-sm"
           >
             <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3" /></svg>
@@ -698,8 +713,8 @@ function App() {
                     <button
                       onClick={() => { setActiveFloor(f); setSelectedItem(null); }}
                       className={`px-2.5 py-1 text-xs rounded-sm font-medium transition-colors border ${activeFloor === f
-                          ? 'bg-blue-700 text-white font-semibold border-blue-600'
-                          : 'bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 border-slate-700'
+                        ? 'bg-blue-700 text-white font-semibold border-blue-600'
+                        : 'bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 border-slate-700'
                         }`}
                     >
                       Tầng {f}
@@ -891,16 +906,6 @@ function App() {
 
               {selectedItem?.type === 'area' && (
                 <>
-                  <DeviceRegistryForm
-                    area={selectedItem.data}
-                    corridors={corridors}
-                    areas={areas}
-                    devices={devices}
-                    guidanceDevices={guidanceState.devices || []}
-                    onAdd={handleAddDevice}
-                    onUpdate={handleUpdateDevice}
-                    onDelete={handleDeleteDevice}
-                  />
                   <AreaForm
                     area={selectedItem.data}
                     allAreas={areas}
@@ -910,6 +915,16 @@ function App() {
                     onChange={handleUpdateArea}
                     onUpdateLanding={handleUpdateStairwellLanding}
                     onDelete={() => handleDeleteArea(selectedItem.data.id)}
+                  />
+                  <DeviceRegistryForm
+                    area={selectedItem.data}
+                    corridors={corridors}
+                    areas={areas}
+                    devices={devices}
+                    guidanceDevices={guidanceState.devices || []}
+                    onAdd={handleAddDevice}
+                    onUpdate={handleUpdateDevice}
+                    onDelete={handleDeleteDevice}
                   />
                 </>
               )}
@@ -971,9 +986,9 @@ function App() {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">Trạng thái hệ thống</span>
                   <span className={`text-[11px] font-mono font-semibold px-2 py-0.5 rounded ${simulationState.status === 'running' ? 'bg-blue-900/60 text-blue-300 border border-blue-700/60' :
-                      simulationState.status === 'completed' ? 'bg-emerald-900/60 text-emerald-300 border border-emerald-700/60' :
-                        simulationState.status === 'trapped' ? 'bg-red-900/60 text-red-300 border border-red-700/60' :
-                          'bg-slate-800 text-slate-400 border border-slate-700'
+                    simulationState.status === 'completed' ? 'bg-emerald-900/60 text-emerald-300 border border-emerald-700/60' :
+                      simulationState.status === 'trapped' ? 'bg-red-900/60 text-red-300 border border-red-700/60' :
+                        'bg-slate-800 text-slate-400 border border-slate-700'
                     }`}>
                     {simulationState.status === 'running' && <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse mr-1.5" />}
                     {simulationStatusLabel}
@@ -1367,8 +1382,8 @@ function App() {
                           <button
                             onClick={toggleIncident}
                             className={`w-full py-2 rounded font-semibold text-xs transition-colors flex items-center justify-center gap-2 border ${isBlocked
-                                ? 'bg-emerald-950/60 border-emerald-700 text-emerald-300 hover:bg-emerald-900/80'
-                                : 'bg-red-950/60 border-red-700 text-red-300 hover:bg-red-900/80'
+                              ? 'bg-emerald-950/60 border-emerald-700 text-emerald-300 hover:bg-emerald-900/80'
+                              : 'bg-red-950/60 border-red-700 text-red-300 hover:bg-red-900/80'
                               }`}
                           >
                             <span>{isBlocked ? 'Khôi phục lưu thông hành lang' : 'Phong tỏa hành lang (Báo cháy / Sự cố)'}</span>
@@ -1488,8 +1503,8 @@ function App() {
                             <button
                               onClick={toggleExitIncident}
                               className={`w-full py-2 rounded font-semibold text-xs transition-colors flex items-center justify-center gap-2 border ${isBlocked
-                                  ? 'bg-emerald-950/60 border-emerald-700 text-emerald-300 hover:bg-emerald-900/80'
-                                  : 'bg-red-950/60 border-red-700 text-red-300 hover:bg-red-900/80'
+                                ? 'bg-emerald-950/60 border-emerald-700 text-emerald-300 hover:bg-emerald-900/80'
+                                : 'bg-red-950/60 border-red-700 text-red-300 hover:bg-red-900/80'
                                 }`}
                             >
                               <span>{isBlocked ? 'Khôi phục lối thoát này' : 'Phong tỏa lối thoát này (Có khói/lửa)'}</span>
@@ -1538,8 +1553,8 @@ function App() {
                             key={floor}
                             onClick={() => setActiveFloor(floor)}
                             className={`cursor-pointer rounded px-2.5 py-1.5 flex items-center justify-between text-xs transition-colors border ${isActive
-                                ? 'bg-slate-800 border-blue-500/80 text-white'
-                                : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:bg-slate-800/60 hover:text-white'
+                              ? 'bg-slate-800 border-blue-500/80 text-white'
+                              : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:bg-slate-800/60 hover:text-white'
                               }`}
                           >
                             <span className="font-medium">Tầng {floor}</span>
@@ -1603,8 +1618,8 @@ function App() {
                       ) : (
                         logs.map((log, idx) => (
                           <div key={idx} className={`p-1.5 rounded border text-[11px] font-mono ${log.type === 'alert'
-                              ? 'bg-red-950/30 border-red-800/60 text-red-200'
-                              : 'bg-slate-800/40 border-slate-700/60 text-slate-300'
+                            ? 'bg-red-950/30 border-red-800/60 text-red-200'
+                            : 'bg-slate-800/40 border-slate-700/60 text-slate-300'
                             }`}>
                             <div className="flex justify-between items-center mb-0.5">
                               <span className={`font-bold ${log.type === 'alert' ? 'text-red-400' : 'text-blue-400'}`}>

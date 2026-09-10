@@ -22,6 +22,7 @@ export const AREA_3D_DEFAULTS = {
 export const LANDING_SIDES = ['auto', 'front', 'right', 'back', 'left'];
 export const MAX_OVERVIEW_GAP_METERS = 0.45;
 export const WALK_SURFACE_Y = 0.19;
+export const FLOOR_TOP_Y = WALK_SURFACE_Y + 0.025;
 
 export const sceneSettings = (scene = {}) => ({ ...DEFAULT_SCENE_3D, ...scene });
 
@@ -516,4 +517,150 @@ export function cameraPreset(command, bounds) {
   if (command === 'top') return { target, position: [target[0], target[1] + span * 2.15, target[2] + 0.02] };
   if (command === 'iso') return { target, position: [target[0] + span * 1.5, target[1] + span * 1.15, target[2] + span * 1.5] };
   return { target, position: [target[0] + span * 1.25, target[1] + span * 1.35, target[2] + span * 1.25] };
+}
+
+export const CSI_NODE_INTERVAL_METERS = 10.0;
+export const CSI_NODE_MOUNT_HEIGHT = 0.26;
+export const CSI_NODE_WALL_INSET = 0.065;
+
+function lerpVec3(a, b, t) {
+  return [
+    a[0] + (b[0] - a[0]) * t,
+    a[1] + (b[1] - a[1]) * t,
+    a[2] + (b[2] - a[2]) * t,
+  ];
+}
+
+/**
+ * Trích xuất cấu trúc mạng node CSI so le (staggered zig-zag) dọc theo 2 bên vách tường hành lang.
+ * - Hành lang ngắn (<= 12m): 2 node ở 2 đầu tách biệt, 1 node vách trái, 1 node vách phải.
+ * - Hành lang dài hơn: tự động sinh thêm các node phân bố so le trái-phải-trái-phải cách nhau ~8-10m.
+ * - Chỉ tạo link truyền nhận giữa các node kề nhau ở 2 vách đối diện (0 <-> 1, 1 <-> 2, 2 <-> 3).
+ *   Không tạo link giữa các node cùng vách tường và không nối các node quá xa nhau.
+ */
+export function extractCorridorCsiTopology(model, targetSpacingMeters = 9.0) {
+  const { corridor, geometry, startPortal, endPortal } = model;
+  const width = corridorDisplayWidth(corridor.widthMeters);
+  const layout = corridorSweepLayout(
+    startPortal,
+    endPortal,
+    geometry.horizontalDirection,
+    width,
+    geometry.direct
+  );
+
+  const sections = layout.sections;
+  if (!sections || sections.length < 2) {
+    return { corridorId: corridor.id, nodes: [], links: [], totalLength: 0 };
+  }
+
+  const segLengths = [];
+  let totalLength = 0;
+  for (let i = 0; i < sections.length - 1; i += 1) {
+    const dx = sections[i + 1].center[0] - sections[i].center[0];
+    const dy = sections[i + 1].center[1] - sections[i].center[1];
+    const dz = sections[i + 1].center[2] - sections[i].center[2];
+    const len = Math.hypot(dx, dy, dz);
+    segLengths.push(len);
+    totalLength += len;
+  }
+
+  const effectiveLength = Math.max(totalLength, geometry.length || 1);
+
+  // Lề an toàn từ 2 đầu cửa (khoảng 1.2m - 1.5m để node nằm gọn gàng bên trong vách tường, không chạm mép cửa)
+  const dStart = Math.min(1.5, Math.max(0.6, effectiveLength * 0.15));
+  const dEnd = Math.max(dStart + 0.5, effectiveLength - dStart);
+  const span = dEnd - dStart;
+
+  // Số khoảng cách: nếu ngắn thì 1 khoảng (2 node ở 2 đầu), dài thì thêm các node so le
+  const numIntervals = Math.max(1, Math.round(span / targetSpacingMeters));
+  const numNodes = numIntervals + 1;
+
+  const sampleAtDist = (targetDist) => {
+    let accum = 0;
+    let secIdx = 0;
+    let subT = 0.5;
+
+    if (totalLength > 0.001) {
+      for (let i = 0; i < segLengths.length; i += 1) {
+        if (accum + segLengths[i] >= targetDist || i === segLengths.length - 1) {
+          secIdx = i;
+          const segLen = Math.max(0.0001, segLengths[i]);
+          subT = Math.max(0, Math.min(1, (targetDist - accum) / segLen));
+          break;
+        }
+        accum += segLengths[i];
+      }
+    }
+
+    const s0 = sections[secIdx];
+    const s1 = sections[Math.min(sections.length - 1, secIdx + 1)];
+    const ptLeft = lerpVec3(s0.left, s1.left, subT);
+    const ptRight = lerpVec3(s0.right, s1.right, subT);
+
+    const acrossX = ptRight[0] - ptLeft[0];
+    const acrossZ = ptRight[2] - ptLeft[2];
+    const acrossLen = Math.hypot(acrossX, acrossZ) || 1;
+    const ux = acrossX / acrossLen;
+    const uz = acrossZ / acrossLen;
+
+    const baseFloorY = ptLeft[1] + FLOOR_TOP_Y;
+    const mountY = baseFloorY + CSI_NODE_MOUNT_HEIGHT;
+
+    return {
+      leftPos: [ptLeft[0] + ux * CSI_NODE_WALL_INSET, mountY, ptLeft[2] + uz * CSI_NODE_WALL_INSET],
+      rightPos: [ptRight[0] - ux * CSI_NODE_WALL_INSET, mountY, ptRight[2] - uz * CSI_NODE_WALL_INSET],
+    };
+  };
+
+  const nodes = [];
+  for (let j = 0; j < numNodes; j += 1) {
+    const frac = numNodes > 1 ? j / (numNodes - 1) : 0.5;
+    const dist = dStart + frac * span;
+    const { leftPos, rightPos } = sampleAtDist(dist);
+    const isLeft = j % 2 === 0;
+
+    nodes.push({
+      id: `${corridor.id}-n${j}`,
+      corridorId: corridor.id,
+      nodeIndex: j,
+      totalInCorridor: numNodes,
+      side: isLeft ? 'left' : 'right',
+      position: isLeft ? leftPos : rightPos,
+      progress: frac,
+    });
+  }
+
+  // Danh sách các link CSI: chỉ kết nối giữa 2 node kề nhau ở 2 vách đối diện
+  const links = [];
+  for (let j = 0; j < numNodes - 1; j += 1) {
+    const a = nodes[j];
+    const b = nodes[j + 1];
+    const dx = b.position[0] - a.position[0];
+    const dy = b.position[1] - a.position[1];
+    const dz = b.position[2] - a.position[2];
+    links.push({
+      id: `${corridor.id}-link${j}`,
+      corridorId: corridor.id,
+      linkIndex: j,
+      totalLinks: numNodes - 1,
+      nodeA: a,
+      nodeB: b,
+      length: Math.hypot(dx, dy, dz),
+    });
+  }
+
+  return { corridorId: corridor.id, nodes, links, totalLength: effectiveLength };
+}
+
+export function extractCorridorCsiPairs(model, intervalMeters = CSI_NODE_INTERVAL_METERS) {
+  const topo = extractCorridorCsiTopology(model, intervalMeters);
+  return topo.links.map((link) => ({
+    id: link.id,
+    corridorId: link.corridorId,
+    pairIndex: link.linkIndex,
+    totalInCorridor: link.totalLinks,
+    leftPos: link.nodeA.side === 'left' ? link.nodeA.position : link.nodeB.position,
+    rightPos: link.nodeA.side === 'right' ? link.nodeA.position : link.nodeB.position,
+  }));
 }

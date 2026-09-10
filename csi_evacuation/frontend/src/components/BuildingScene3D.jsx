@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Grid, Html, OrbitControls, RoundedBox } from '@react-three/drei';
 import { areaVisualKind, cameraPreset, corridorDisplayWidth, corridorGeometry, corridorSweepLayout, createAreaPortalRegistry, dotPlacement, floorDisplayY, junctionOperationalState, junctionRadius, planPosition, portalPlacement, roomWallLayout, sceneSettings, stairEntranceSide, stairFlightLayout, stairwellCoreModels, visualForArea, visibleOnFloor, WALK_SURFACE_Y, worldPosition } from './scene3d';
+import CsiSensorNetwork3D from './CsiSensorNetwork3D';
 
 const MAX_DOTS = 2000;
 // Keep visible walking surfaces materially above their structural plinths.
@@ -627,6 +628,7 @@ function SceneContents({ areas, corridors, stairwells, activeFloor, scene, selec
     <GuidanceArrows3D corridorModels={corridorModels} guidanceState={guidanceState} incidentData={incidentData} simulationStatus={simulationStatus} />
     <BlockedBarriers3D corridorModels={corridorModels} incidentData={incidentData} />
     <Signboards3D areas={visibleAreas} devices={devices} guidanceState={guidanceState} scene={scene} activeFloor={activeFloor} floorView={floorView} floors={floors} />
+    <CsiSensorNetwork3D corridorModels={corridorModels} simulationStatus={simulationStatus} selectedItem={selectedItem} />
     {visibleAreas.filter((area) => !(floorView === 'overview' && area.type === 'stairs' && area.stairwellId)).map((area) => <AreaBlock key={area.id} area={area} scene={scene} activeFloor={activeFloor} floorView={floorView} floors={floors} selected={selectedItem?.type === 'area' && selectedItem.data.id === area.id} editable={editable && editTool === 'select'} corridorMode={editable && editTool === 'addCorridor'} snap={snap} onSelect={onSelectItem} onMove={onUpdateArea} onStartCorridor={startCorridor} onDragState={setDragging} stairwell={wells.find((well) => well.id === area.stairwellId)} portalOptions={portalOptions} portals={portalRegistry.byArea[area.id] || []} junctionColor={junctionColors[area.id]} />)}
     <CameraRig areas={areas} scene={scene} activeFloor={activeFloor} floorView={floorView} floors={floors} command={command} dragging={dragging} />
   </>;

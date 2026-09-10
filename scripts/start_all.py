@@ -98,7 +98,12 @@ def main() -> int:
     processes: list[subprocess.Popen] = []
     try:
         start("backend", ["node", "server.js"], BACKEND, environment, processes)
-        time.sleep(1)
+        # Chờ broker MQTT sẵn sàng trên cổng 1883 trước khi khởi động client
+        deadline = time.time() + 10.0
+        while time.time() < deadline:
+            if not port_available(int(environment.get("WIEVAC_MQTT_PORT", "1883"))):
+                break
+            time.sleep(0.2)
         start("edge", [sys.executable, "edge_core.py"], EDGE, environment, processes)
         if environment.get("WIEVAC_SIMULATOR", "1") == "1":
             start("device-simulator", [sys.executable, "device_simulator.py"], EDGE, environment, processes)

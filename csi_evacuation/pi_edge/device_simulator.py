@@ -77,5 +77,14 @@ if __name__ == "__main__":
     mqtt_client.on_connect = on_connect
     mqtt_client.on_message = on_message
     mqtt_client.reconnect_delay_set(min_delay=1, max_delay=10)
-    mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
+    connected = False
+    deadline = time.time() + 20.0
+    while not connected and time.time() < deadline:
+        try:
+            mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
+            connected = True
+        except Exception:
+            time.sleep(0.5)
+    if not connected:
+        mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
     mqtt_client.loop_forever()

@@ -852,6 +852,16 @@ def publish_live_guidance(client):
     if simulation_active or simulation_step > 0 or elapsed_before_pause > 0:
         return
     occupancy = csi_layer.all_states(edge["id"] for edge in map_config.get("edges", []))
+    # When no live CSI sensor hardware is transmitting, use baseline edge_states so idle / unmonitored
+    # corridors are treated with their known baseline occupancy, not falsely assumed to be 100% full/blocked.
+    if not any(s.get("status") == "OK" for s in occupancy.values()):
+        occupancy = {
+            edge["id"]: edge_states.get(
+                edge["id"],
+                {"measured_k": 0.0, "filtered_k": 0.0, "status": "OK", "confidence": 1.0, "last_updated": time.time()}
+            )
+            for edge in map_config.get("edges", [])
+        }
     graph, edge_map = build_graph()
     exits, distances, route_options = compute_routes(
         graph, edge_map, occupancy
@@ -903,6 +913,8 @@ def on_connect(client, userdata, flags, reason_code, properties=None):
         client.subscribe("building/incident/clear")
         client.subscribe("building/guidance/ack/+")
         client.subscribe("building/guidance/capabilities/+")
+        if not simulation_active and simulation_step == 0:
+            reset_simulation(client)
     else:
         print(f"Failed to connect, return code {reason_code}")
 

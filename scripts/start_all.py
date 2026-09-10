@@ -74,11 +74,18 @@ def stop_all(processes: list[subprocess.Popen]) -> None:
                     process.kill()
 
 
+def cleanup_zombies() -> None:
+    if os.name == "nt":
+        cmd = f'Get-CimInstance Win32_Process | Where-Object {{ ($_.CommandLine -like "*edge_core.py*" -or $_.CommandLine -like "*device_simulator.py*") -and $_.ProcessId -ne {os.getpid()} }} | ForEach-Object {{ Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }}'
+        subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True)
+
+
 def main() -> int:
     if sys.version_info < (3, 10):
         print("Cần Python 3.10+.", file=sys.stderr)
         return 2
     load_env()
+    cleanup_zombies()
     try:
         require(importlib.util.find_spec("paho.mqtt") is not None, "Thiếu paho-mqtt. Chạy: python -m pip install -r requirements.txt")
         require(shutil.which("node") is not None, "Thiếu Node.js 20+.")

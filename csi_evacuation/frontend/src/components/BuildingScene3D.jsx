@@ -505,6 +505,9 @@ const BlockedBarriers3D = React.memo(function BlockedBarriers3D({ corridorModels
 
 function getSignDirective(command, presentation, device) {
   const intent = String(presentation?.intent || command || '').toUpperCase();
+  if (intent.includes('STANDBY') || intent.includes('IDLE')) {
+    return { arrow: '⚪', text: 'CHỜ LỆNH', tone: 'info' };
+  }
   if (intent.includes('DO_NOT_ENTER') || intent.includes('NO_SAFE_ROUTE') || intent.includes('STOP')) {
     return { arrow: '🚷', text: 'CẤM VÀO', tone: 'danger' };
   }

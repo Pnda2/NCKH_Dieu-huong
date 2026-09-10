@@ -1201,7 +1201,20 @@
       "hazard": 0
     }
   ],
-  "devices": [],
+  "devices": [
+    {
+      "id": "d_1789053810837_280",
+      "name": "sign_p10_01",
+      "type": "sign",
+      "area_id": "area_1788183099728_31lh9xd6a",
+      "orientation": 0,
+      "topic": "building/guidance/sign/sign_p10_01",
+      "edgeDirections": {
+        "corr_1788183099728_351y9bdgj": "LEFT",
+        "e_1788183434485": "BACK"
+      }
+    }
+  ],
   "floorImages": {},
   "floors": [
     1,

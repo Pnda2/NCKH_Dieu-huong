@@ -68,8 +68,8 @@ MatrixPanel_I2S_DMA *dma_display = nullptr;
 // 2. CẤU HÌNH WIFI & MÁY CHỦ MQTT WIEVAC
 // ========================================================================================
 // Thay đổi thông tin mạng WiFi của bạn tại đây:
-const char* WIFI_SSID     = "YOUR_WIFI_SSID";      // Tên WiFi
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";  // Mật khẩu WiFi
+const char* WIFI_SSID     = "DYP05";      // Tên WiFi
+const char* WIFI_PASSWORD = "12344321";  // Mật khẩu WiFi
 
 // Địa chỉ IP của máy tính đang chạy WiEvac backend (Port 1883)
 // Lưu ý: Đảm bảo máy tính và ESP32-S3 cùng kết nối chung một mạng WiFi / Hotspot.
@@ -167,9 +167,9 @@ void publishCapabilities() {
   Serial.println("[WiEvac] Da gui ban tin Capabilities.");
 }
 
-void publishAck(uint32_t seq, const char* status, const char* detail) {
+void publishAck(uint32_t seq, const char* status, const char* detail, const char* devId = DEVICE_ID) {
   StaticJsonDocument<256> ack;
-  ack["device_id"] = DEVICE_ID;
+  ack["device_id"] = devId;
   ack["sequence"] = seq;
   ack["status"] = status;
   ack["detail"] = detail;
@@ -177,7 +177,7 @@ void publishAck(uint32_t seq, const char* status, const char* detail) {
 
   char payload[256];
   serializeJson(ack, payload);
-  String topic = String("building/guidance/ack/") + DEVICE_ID;
+  String topic = String("building/guidance/ack/") + devId;
   mqttClient.publish(topic.c_str(), payload, false);
 }
 
@@ -255,9 +255,10 @@ void processSignCommand(JsonObject& doc) {
   }
 
   // Gửi xác nhận lại máy chủ WiEvac để đổi trạng thái UI sang ONLINE
-  publishAck(seq, "display_applied", "p10_matrix_updated");
-  Serial.printf("[WiEvac] Lenh: %s, Huong: %s, Ngã 3: %s\n", 
-                cmd, dir, gState.isJunction ? "CO" : "KHONG");
+  const char* devId = doc["device_id"] | DEVICE_ID;
+  publishAck(seq, "display_applied", "p10_matrix_updated", devId);
+  Serial.printf("[WiEvac] Lenh: %s, Huong: %s, Ngã 3: %s (ID: %s)\n", 
+                cmd, dir, gState.isJunction ? "CO" : "KHONG", devId);
 }
 
 void processBuildingState(JsonObject& doc) {
@@ -327,8 +328,8 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
 
   String strTopic = String(topic);
 
-  // 1. Nhận lệnh trực tiếp cho bảng hiệu này
-  if (strTopic.indexOf(DEVICE_ID) >= 0) {
+  // 1. Nhận lệnh trực tiếp cho bảng hiệu (bắt tất cả các bảng hiệu hoặc ID cụ thể)
+  if (strTopic.startsWith("building/guidance/sign/")) {
     JsonObject obj = doc.as<JsonObject>();
     processSignCommand(obj);
     return;
@@ -379,9 +380,8 @@ void checkMqttConnection() {
   if (mqttClient.connect(DEVICE_ID)) {
     Serial.println("[MQTT] Ket noi thanh cong!");
 
-    // Đăng ký nhận lệnh bảng hiệu
-    String signTopic = String("building/guidance/sign/") + DEVICE_ID;
-    mqttClient.subscribe(signTopic.c_str(), 1);
+    // Đăng ký nhận lệnh tất cả bảng hiệu trong hệ thống
+    mqttClient.subscribe("building/guidance/sign/#", 1);
 
     // Đăng ký nhận trạng thái toàn cục & giả lập
     mqttClient.subscribe("building/guidance/state", 1);

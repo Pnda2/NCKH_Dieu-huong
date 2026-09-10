@@ -51,6 +51,7 @@ routing_parameters = WeightParameters(
 routing_service = None
 simulation_active = False
 simulation_thread = None
+simulation_stop_event = threading.Event()
 shutting_down = False
 blocked_edges = set()
 blocked_exits = set()
@@ -756,13 +757,14 @@ def simulation_loop(client, resume=False):
 
         sleep_for = TICK_SECONDS - (time.monotonic() - tick_started)
         if sleep_for > 0:
-            time.sleep(sleep_for)
+            simulation_stop_event.wait(timeout=sleep_for)
 
 
 def stop_simulation(client):
     global simulation_active, simulation_thread
     global simulation_started_at, elapsed_before_pause
     was_running = simulation_active
+    simulation_stop_event.set()
     with state_lock:
         simulation_active = False
         if simulation_started_at is not None:
@@ -775,13 +777,13 @@ def stop_simulation(client):
         and simulation_thread.is_alive()
         and simulation_thread is not threading.current_thread()
     ):
-        simulation_thread.join(timeout=TICK_SECONDS + 1.0)
+        simulation_thread.join(timeout=1.0)
     if was_running:
         publish_log(
             client,
             [make_log("stopped", "Mô phỏng đã được dừng bởi người vận hành.")],
         )
-    guidance_controller.stop_all(client)
+    # Note: guidance decisions remain frozen/visible during pause so the operator can inspect routes.
     publish_state(
         client, "stopped", simulation_step, message="Mô phỏng đã dừng."
     )
@@ -917,9 +919,11 @@ def on_message(client, userdata, msg):
             print("Error parsing map config:", exc)
 
     elif topic == "building/simulation/start":
+        simulation_stop_event.set()
         if simulation_thread and simulation_thread.is_alive():
             simulation_active = False
-            simulation_thread.join(timeout=2.0)
+            simulation_thread.join(timeout=1.0)
+        simulation_stop_event.clear()
         simulation_active = True
         simulation_thread = threading.Thread(
             target=simulation_loop, args=(client, False), daemon=True
@@ -927,9 +931,11 @@ def on_message(client, userdata, msg):
         simulation_thread.start()
 
     elif topic == "building/simulation/resume":
+        simulation_stop_event.set()
         if simulation_thread and simulation_thread.is_alive():
             simulation_active = False
-            simulation_thread.join(timeout=2.0)
+            simulation_thread.join(timeout=1.0)
+        simulation_stop_event.clear()
         simulation_active = True
         simulation_thread = threading.Thread(
             target=simulation_loop, args=(client, True), daemon=True

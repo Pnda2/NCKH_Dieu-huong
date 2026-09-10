@@ -8,8 +8,8 @@
   TÍNH NĂNG TÍCH HỢP:
   1. Kết nối WiFi & MQTT tự động với máy chủ WiEvac (Port 1883).
   2. Phản hồi trạng thái (ACK & Capabilities) giúp Web UI hiển thị "ONLINE" xanh lá.
-  3. Lắng nghe lệnh trực tiếp từ WiEvac (`building/guidance/sign/<DEVICE_ID>`).
-  4. Lắng nghe trạng thái toàn hệ thống (`building/guidance/state`) & độ thông thoáng hành lang.
+  3. Lắng nghe lệnh trực tiếp từ WiEvac (`building/guidance/sign/<DEVICE_ID>` và wildcard).
+  4. Đồng bộ chính xác trạng thái mô phỏng (`building/simulation/state` & start/stop/reset).
   5. CHẾ ĐỘ HIỂN THỊ ĐA DẠNG TRÊN MA TRẬN 32x16:
      - HÀNH LANG 1 HƯỚNG:
        + Mũi tên động chạy (streaming chevrons): TRÁI (LEFT), PHẢI (RIGHT), THẲNG (STRAIGHT).
@@ -17,19 +17,17 @@
          * Xanh lá: Thông thoáng cao (>70%) -> Tuyến đường tối ưu, di chuyển nhanh.
          * Vàng: Thông thoáng vừa (40-70%) -> Đang có người, lưu ý.
          * Đỏ: Kém thông thoáng (<40%) -> Sắp quá tải.
-     - HÀNH LANG TẮC NGHẼN / PHONG TỎA:
-       + Quay lại (BACK / TURN_BACK): Biểu tượng chữ U / mũi tên ngược đỏ nhấp nháy + "QUAY LAI".
-       + Nguy hiểm / Cấm vào (DO_NOT_ENTER / NO_SAFE_ROUTE): Dấu X đỏ chớp nháy + viền cảnh báo đỏ.
+     - HÀNH LANG TẮC NGHẼN / QUAY LẠI (BACK / TURN_BACK):
+       + Luân phiên 2 pha: Biểu tượng chữ U quay đầu lớn cân đối + Chữ "QUAY" "LAI!" đậm, căn giữa 100%.
+     - NGUY HIỂM / CẤM VÀO (DO_NOT_ENTER / NO_SAFE_ROUTE / BLOCKED):
+       + Dấu X đỏ + khung nền đen trung tâm + chữ "STOP" căn giữa tuyệt đối, không lệch lề.
      - ĐẶT TẠI NGÃ 3 (JUNCTION SPLIT):
-       + Chia màn hình 32x16 thành 2 nửa: Nửa Trái (15px) và Nửa Phải (15px).
-       + So sánh 2 hướng thoát hiểm:
-         * Bên nào THÔNG THOÁNG HƠN -> Mũi tên XANH LÁ nhấp nháy ưu tiên (khuyên nên đi).
-         * Bên nào ĐẦY / TẮC NGHẼN -> Mũi tên ĐỎ hoặc VÀNG (hạn chế đi).
-         * Bên nào BỊ KHÓA / CHÁY -> Dấu X ĐỎ cấm đi!
+       + Kích hoạt KHI VÀ CHỈ KHI có 2 nhánh thực tế Trái (LEFT) & Phải (RIGHT).
+       + So sánh 2 hướng thoát hiểm: Nhánh thông thoáng hơn có thanh sáng xanh ưu tiên.
      - CỬA THOÁT HIỂM (EXIT):
        + Biểu tượng cửa thoát hiểm màu xanh lá + chữ "EXIT".
      - TRẠNG THÁI CHỜ (STANDBY):
-       + Logo WiEvac và đèn trạng thái kết nối WiFi & MQTT.
+       + Khi chưa chạy mô phỏng hoặc sau reset: Hiển thị logo WiEvac + đèn kết nối WiFi & MQTT.
   6. Xử lý bất đồng bộ (Non-blocking), duy trì tốc độ khung hình 20 FPS mượt mà.
   ========================================================================================
 */
@@ -67,23 +65,17 @@ MatrixPanel_I2S_DMA *dma_display = nullptr;
 // ========================================================================================
 // 2. CẤU HÌNH WIFI & MÁY CHỦ MQTT WIEVAC
 // ========================================================================================
-// Thay đổi thông tin mạng WiFi của bạn tại đây:
+// Thông tin WiFi:
 const char* WIFI_SSID     = "DYP05";      // Tên WiFi
 const char* WIFI_PASSWORD = "12344321";  // Mật khẩu WiFi
 
-// Địa chỉ IP của máy tính đang chạy WiEvac backend (Port 1883)
-// Lưu ý: Đảm bảo máy tính và ESP32-S3 cùng kết nối chung một mạng WiFi / Hotspot.
+// Địa chỉ IP của máy tính đang chạy WiEvac backend (Port 1883):
 const char* MQTT_HOST     = "192.168.1.184";
 const uint16_t MQTT_PORT  = 1883;
 
 // Định danh của bảng hiệu này trong hệ thống WiEvac
 // Khớp với ID của thiết bị khi bạn thêm "+ BẢNG HIỆU" trên giao diện Web UI
 const char* DEVICE_ID     = "sign_p10_01";
-
-// (Tùy chọn) ID khu vực hành lang / nút ngã 3 muốn theo dõi trực tiếp từ đồ thị
-// Ví dụ: Khu vực 3 ("a_1788182811417" - ngã 3 trên bản đồ mẫu)
-// Nếu để rỗng "", bảng hiệu sẽ hoạt động thuần túy theo lệnh gán cho DEVICE_ID.
-const char* MONITORED_AREA_ID = "a_1788182811417";
 
 // ========================================================================================
 // 3. ĐỊNH NGHĨA MÀU SẮC RGB 565
@@ -93,7 +85,6 @@ inline uint16_t colorRGB(uint8_t r, uint8_t g, uint8_t b) {
   return dma_display->color565(r, g, b);
 }
 
-// Các màu chuẩn dùng trong chỉ dẫn thoát nạn WiEvac
 #define CLR_BLACK      0x0000
 #define CLR_GREEN      dma_display->color565(0, 255, 30)      // Thông thoáng cao / Tuyến ưu tiên
 #define CLR_CYAN       dma_display->color565(0, 230, 255)     // Tín hiệu hướng dẫn WiEvac
@@ -102,7 +93,6 @@ inline uint16_t colorRGB(uint8_t r, uint8_t g, uint8_t b) {
 #define CLR_RED        dma_display->color565(255, 20, 20)     // Tắc nghẽn / Cấm vào / Hướng xấu
 #define CLR_WHITE      dma_display->color565(255, 255, 255)
 #define CLR_DARK_GRAY  dma_display->color565(35, 35, 45)      // Vạch ngăn cách
-#define CLR_BLUE_DIM   dma_display->color565(20, 40, 70)
 
 // ========================================================================================
 // 4. BIẾN TRẠNG THÁI VÀ DỮ LIỆU ĐIỀU HƯỚNG
@@ -112,7 +102,7 @@ enum DisplayMode {
   MODE_SINGLE_ARROW,   // Điều hướng 1 hướng (Trái, Phải, Thẳng)
   MODE_TURN_BACK,      // Tắc nghẽn -> Quay lại
   MODE_BLOCKED,        // Nguy hiểm / Cấm vào
-  MODE_JUNCTION,       // Đặt tại ngã 3 (So sánh 2 hướng)
+  MODE_JUNCTION,       // Đặt tại ngã 3 (So sánh 2 hướng Trái & Phải)
   MODE_EXIT            // Cửa thoát hiểm
 };
 
@@ -154,7 +144,7 @@ bool blinkToggle = false;
 void publishCapabilities() {
   StaticJsonDocument<384> doc;
   doc["device_id"] = DEVICE_ID;
-  doc["firmware_version"] = "1.0.0-p10";
+  doc["firmware_version"] = "1.1.0-p10";
   doc["display_type"] = "hub75_p10_rgb";
   doc["resolution"] = "32x16";
   doc["supports_junction_split"] = true;
@@ -199,49 +189,56 @@ void processSignCommand(JsonObject& doc) {
     gState.loadLevel = String(pres["load_level"] | "clear");
   }
 
-  // Kiểm tra xem lệnh có kèm theo phân luồng ngã 3 (routes) không
+  // Phân tích danh sách tuyến (routes) nếu có
   JsonArray routes = doc["routes"];
+  bool hasLeft = false;
+  bool hasRight = false;
+  RouteInfo rLeft = {"LEFT", 0.0f, 0.5f, false};
+  RouteInfo rRight = {"RIGHT", 0.0f, 0.5f, false};
+
   if (routes.size() >= 2) {
-    gState.isJunction = true;
-    gState.mode = MODE_JUNCTION;
-
-    // Reset thông tin 2 nhánh
-    gState.routeLeft = {"LEFT", 0.0f, 0.5f, false};
-    gState.routeRight = {"RIGHT", 0.0f, 0.5f, false};
-
     for (JsonObject r : routes) {
       String rDir = String(r["direction"] | "");
       float share = r["probability"] | 0.0f;
       float k = r["k"] | 0.5f;
 
       if (rDir == "LEFT") {
-        gState.routeLeft.share = share;
-        gState.routeLeft.k = k;
-        gState.routeLeft.isBlocked = (k >= 0.95f);
+        hasLeft = true;
+        rLeft.share = share;
+        rLeft.k = k;
+        rLeft.isBlocked = (k >= 0.95f);
       } else if (rDir == "RIGHT") {
-        gState.routeRight.share = share;
-        gState.routeRight.k = k;
-        gState.routeRight.isBlocked = (k >= 0.95f);
+        hasRight = true;
+        rRight.share = share;
+        rRight.k = k;
+        rRight.isBlocked = (k >= 0.95f);
       }
     }
+  }
 
-    // Đánh giá nhánh nào tối ưu hơn dựa trên xác suất luồng & độ thông thoáng
+  // Chỉ kích hoạt chế độ so sánh ngã 3 (JUNCTION) KHI VÀ CHỈ KHI có cả 2 nhánh Trái & Phải
+  if (hasLeft && hasRight) {
+    gState.isJunction = true;
+    gState.mode = MODE_JUNCTION;
+    gState.routeLeft = rLeft;
+    gState.routeRight = rRight;
+
     if (gState.routeLeft.isBlocked && !gState.routeRight.isBlocked) {
       gState.recommendedSide = "RIGHT";
     } else if (gState.routeRight.isBlocked && !gState.routeLeft.isBlocked) {
       gState.recommendedSide = "LEFT";
-    } else if (gState.routeLeft.share > gState.routeRight.share + 0.1f) {
+    } else if (gState.routeLeft.share > gState.routeRight.share + 0.05f) {
       gState.recommendedSide = "LEFT";
-    } else if (gState.routeRight.share > gState.routeLeft.share + 0.1f) {
+    } else if (gState.routeRight.share > gState.routeLeft.share + 0.05f) {
       gState.recommendedSide = "RIGHT";
     } else {
       gState.recommendedSide = "EQUAL";
     }
   } else {
+    // Chế độ 1 hướng đơn rõ ràng (theo lệnh chính của D* Lite)
     gState.isJunction = false;
 
-    // Xác định chế độ hiển thị 1 hướng
-    if (gState.command == "STANDBY") {
+    if (gState.command == "STANDBY" || !gState.simRunning) {
       gState.mode = MODE_STANDBY;
     } else if (gState.command == "BACK" || gState.command == "TURN_BACK") {
       gState.mode = MODE_TURN_BACK;
@@ -254,70 +251,14 @@ void processSignCommand(JsonObject& doc) {
     }
   }
 
-  // Gửi xác nhận lại máy chủ WiEvac để đổi trạng thái UI sang ONLINE
+  // Gửi xác nhận ACK về backend
   const char* devId = doc["device_id"] | DEVICE_ID;
   publishAck(seq, "display_applied", "p10_matrix_updated", devId);
   Serial.printf("[WiEvac] Lenh: %s, Huong: %s, Ngã 3: %s (ID: %s)\n", 
                 cmd, dir, gState.isJunction ? "CO" : "KHONG", devId);
 }
 
-void processBuildingState(JsonObject& doc) {
-  // Nếu có cấu hình MONITORED_AREA_ID, ta có thể tự động bám theo quyết định của nút đó
-  if (strlen(MONITORED_AREA_ID) == 0) return;
-
-  JsonObject decisions = doc["decisions"];
-  if (decisions.isNull()) return;
-
-  JsonObject areaDec = decisions[MONITORED_AREA_ID];
-  if (areaDec.isNull()) return;
-
-  JsonArray routes = areaDec["routes"];
-  if (routes.size() >= 2) {
-    gState.isJunction = true;
-    gState.mode = MODE_JUNCTION;
-    gState.routeLeft = {"LEFT", 0.0f, 0.5f, false};
-    gState.routeRight = {"RIGHT", 0.0f, 0.5f, false};
-
-    for (JsonObject r : routes) {
-      String edgeId = String(r["edge_id"] | "");
-      float share = r["probability"] | 0.0f;
-      float k = r["k"] | 0.5f;
-
-      // Giả lập nhánh: route đầu tiên sang Trái, route thứ hai sang Phải
-      if (gState.routeLeft.share == 0.0f) {
-        gState.routeLeft.share = share;
-        gState.routeLeft.k = k;
-        gState.routeLeft.isBlocked = (k >= 0.95f);
-      } else {
-        gState.routeRight.share = share;
-        gState.routeRight.k = k;
-        gState.routeRight.isBlocked = (k >= 0.95f);
-      }
-    }
-
-    if (gState.routeLeft.isBlocked && !gState.routeRight.isBlocked) {
-      gState.recommendedSide = "RIGHT";
-    } else if (gState.routeRight.isBlocked && !gState.routeLeft.isBlocked) {
-      gState.recommendedSide = "LEFT";
-    } else if (gState.routeLeft.share >= gState.routeRight.share) {
-      gState.recommendedSide = "LEFT";
-    } else {
-      gState.recommendedSide = "RIGHT";
-    }
-  } else if (routes.size() == 1) {
-    gState.isJunction = false;
-    float k = routes[0]["k"] | 0.5f;
-    if (k >= 0.95f) {
-      gState.mode = MODE_TURN_BACK;
-    } else {
-      gState.mode = MODE_SINGLE_ARROW;
-      gState.direction = "STRAIGHT";
-    }
-  }
-}
-
 void onMqttMessage(char* topic, byte* payload, unsigned int length) {
-  // Bộ nhớ đệm phân tích JSON
   DynamicJsonDocument doc(2048);
   DeserializationError err = deserializeJson(doc, payload, length);
   if (err) {
@@ -328,33 +269,33 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
 
   String strTopic = String(topic);
 
-  // 1. Nhận lệnh trực tiếp cho bảng hiệu (bắt tất cả các bảng hiệu hoặc ID cụ thể)
+  // 1. Nhận lệnh trực tiếp cho bảng hiệu
   if (strTopic.startsWith("building/guidance/sign/")) {
     JsonObject obj = doc.as<JsonObject>();
     processSignCommand(obj);
     return;
   }
 
-  // 2. Nhận trạng thái toàn tòa nhà
-  if (strTopic == "building/guidance/state") {
-    JsonObject obj = doc.as<JsonObject>();
-    processBuildingState(obj);
-    return;
-  }
-
-  // 3. Tín hiệu bắt đầu / dừng giả lập
+  // 2. Tín hiệu đồng bộ mô phỏng
   if (strTopic == "building/simulation/start") {
     gState.simRunning = true;
     Serial.println("[WiEvac] Bat dau gia lap thoat hiem.");
-  } else if (strTopic == "building/simulation/stop" || strTopic == "building/simulation/reset") {
+  } else if (strTopic == "building/simulation/stop") {
+    gState.simRunning = false;
+    Serial.println("[WiEvac] Dung gia lap (tam dung giu nguyen man hinh).");
+  } else if (strTopic == "building/simulation/reset") {
     gState.simRunning = false;
     gState.mode = MODE_STANDBY;
-    Serial.println("[WiEvac] Dung / Dat lai gia lap.");
+    Serial.println("[WiEvac] Reset gia lap -> Ve che do Standby.");
   } else if (strTopic == "building/simulation/state") {
     const char* status = doc["status"] | "idle";
-    gState.simRunning = (!strcmp(status, "running"));
-    if (!gState.simRunning && gState.mode != MODE_BLOCKED) {
+    if (!strcmp(status, "running")) {
+      gState.simRunning = true;
+    } else if (!strcmp(status, "idle")) {
+      gState.simRunning = false;
       gState.mode = MODE_STANDBY;
+    } else if (!strcmp(status, "stopped")) {
+      gState.simRunning = false;
     }
   }
 }
@@ -373,18 +314,25 @@ void checkMqttConnection() {
   if (mqttClient.connected()) return;
 
   unsigned long now = millis();
-  if (now - lastMqttRetry < 3000) return; // Thử lại sau mỗi 3 giây, không delay
+  if (now - lastMqttRetry < 3000) return;
   lastMqttRetry = now;
 
-  Serial.printf("[MQTT] Dang ket noi toi %s:%d...\n", MQTT_HOST, MQTT_PORT);
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("[WiFi] Dang cho ket noi WiFi...");
+    return;
+  }
+
+  Serial.print("[MQTT] Dang ket noi toi ");
+  Serial.print(MQTT_HOST);
+  Serial.println("...");
+
   if (mqttClient.connect(DEVICE_ID)) {
     Serial.println("[MQTT] Ket noi thanh cong!");
 
-    // Đăng ký nhận lệnh tất cả bảng hiệu trong hệ thống
+    // Lắng nghe lệnh trực tiếp gửi đến bảng hiệu này và wildcard
     mqttClient.subscribe("building/guidance/sign/#", 1);
 
-    // Đăng ký nhận trạng thái toàn cục & giả lập
-    mqttClient.subscribe("building/guidance/state", 1);
+    // Lắng nghe trạng thái mô phỏng
     mqttClient.subscribe("building/simulation/start", 0);
     mqttClient.subscribe("building/simulation/stop", 0);
     mqttClient.subscribe("building/simulation/reset", 0);
@@ -404,7 +352,6 @@ void checkMqttConnection() {
 
 // Vẽ mũi tên sang Trái (chevrons chảy động)
 void drawStreamingArrowLeft(uint16_t color, uint8_t offset) {
-  // Vẽ 3 cặp dấu < di chuyển sang trái
   for (int c = 0; c < 3; c++) {
     int baseX = 24 - c * 9 - offset;
     if (baseX < -4) baseX += 27;
@@ -415,7 +362,6 @@ void drawStreamingArrowLeft(uint16_t color, uint8_t offset) {
       int pyBot = 8 + dy;
       if (px >= 0 && px < 32 && pyTop >= 0 && pyTop < 16) dma_display->drawPixel(px, pyTop, color);
       if (px >= 0 && px < 32 && pyBot >= 0 && pyBot < 16) dma_display->drawPixel(px, pyBot, color);
-      // Đổ dày 2 pixel cho mũi tên rõ nét
       if (px + 1 >= 0 && px + 1 < 32 && pyTop >= 0 && pyTop < 16) dma_display->drawPixel(px + 1, pyTop, color);
       if (px + 1 >= 0 && px + 1 < 32 && pyBot >= 0 && pyBot < 16) dma_display->drawPixel(px + 1, pyBot, color);
     }
@@ -458,46 +404,59 @@ void drawStreamingArrowUp(uint16_t color, uint8_t offset) {
 }
 
 // Vẽ cảnh báo QUAY LẠI khi hành lang tắc nghẽn (TURN BACK / U-TURN)
+// Luân phiên 2 pha: Pha 1 vẽ biểu tượng chữ U quay đầu lớn cân đối | Pha 2 vẽ chữ "QUAY" "LAI!" đậm, căn giữa 100%
 void drawTurnBackWarning(bool blink) {
-  uint16_t primaryClr = blink ? CLR_RED : CLR_ORANGE;
+  if (blink) {
+    // Pha 1: Biểu tượng chữ U lộn ngược (Quay đầu) lớn, cân đối ở chính giữa màn hình
+    dma_display->drawRect(0, 0, 32, 16, CLR_RED);
 
-  // Biểu tượng chữ U lộn ngược (Quay đầu) ở nửa trái (X: 2..13)
-  dma_display->drawFastHLine(5, 2, 7, primaryClr);
-  dma_display->drawFastVLine(4, 3, 7, primaryClr);
-  dma_display->drawFastVLine(12, 3, 10, primaryClr);
-  // Đầu mũi tên chỉ xuống ở chân chữ U (X: 12, Y: 12)
-  dma_display->drawPixel(11, 11, primaryClr);
-  dma_display->drawPixel(13, 11, primaryClr);
-  dma_display->drawPixel(10, 10, primaryClr);
-  dma_display->drawPixel(14, 10, primaryClr);
+    // Vòm cong chữ U ở trên
+    dma_display->drawFastHLine(11, 2, 10, CLR_RED);
+    dma_display->drawFastHLine(12, 3, 8, CLR_ORANGE);
+    dma_display->drawFastVLine(10, 3, 9, CLR_RED);
+    dma_display->drawFastVLine(11, 4, 7, CLR_ORANGE);
+    dma_display->drawFastVLine(21, 3, 7, CLR_RED);
+    dma_display->drawFastVLine(20, 4, 5, CLR_ORANGE);
 
-  // Chữ cảnh báo ngắn "QUAY LAI" hoặc "BACK" ở nửa phải (X: 16..31)
-  dma_display->setTextColor(blink ? CLR_WHITE : CLR_RED);
-  dma_display->setTextSize(1);
-  dma_display->setCursor(16, 1);
-  dma_display->print("QUAY");
-  dma_display->setCursor(16, 9);
-  dma_display->print("LAI!");
+    // Mũi tên chỉ xuống ở chân chữ U (nhánh phải)
+    dma_display->drawPixel(21, 12, CLR_RED);
+    dma_display->drawPixel(20, 11, CLR_RED);
+    dma_display->drawPixel(22, 11, CLR_RED);
+    dma_display->drawPixel(19, 10, CLR_RED);
+    dma_display->drawPixel(23, 10, CLR_RED);
+    dma_display->drawPixel(21, 10, CLR_ORANGE);
+    dma_display->drawPixel(21, 11, CLR_ORANGE);
+  } else {
+    // Pha 2: Chữ QUAY / LAI! đậm, căn giữa hoàn hảo (không bị tràn dòng hay lệch)
+    dma_display->drawRect(0, 0, 32, 16, CLR_ORANGE);
+    dma_display->setTextColor(CLR_YELLOW);
+    dma_display->setTextSize(1);
+    dma_display->setCursor(5, 1);
+    dma_display->print("QUAY");
+
+    dma_display->setTextColor(CLR_RED);
+    dma_display->setCursor(5, 9);
+    dma_display->print("LAI!");
+  }
 }
 
 // Vẽ biểu tượng CẤM VÀO / PHONG TỎA (DO NOT ENTER / NO ROUTE)
+// Căn giữa chữ "STOP" tuyệt đối (X=5, Y=5), viền đỏ cân đối
 void drawBlockedWarning(bool blink) {
   uint16_t borderClr = blink ? CLR_RED : dma_display->color565(120, 0, 0);
 
   // Viền đỏ bao quanh
   dma_display->drawRect(0, 0, 32, 16, borderClr);
 
-  // Dấu gạch chéo đỏ lớn (X)
-  dma_display->drawLine(3, 2, 28, 13, CLR_RED);
-  dma_display->drawLine(4, 2, 29, 13, CLR_RED);
-  dma_display->drawLine(28, 2, 3, 13, CLR_RED);
-  dma_display->drawLine(29, 2, 4, 13, CLR_RED);
+  // Dấu gạch chéo đỏ lớn (X) 4 góc
+  dma_display->drawLine(1, 1, 30, 14, CLR_RED);
+  dma_display->drawLine(30, 1, 1, 14, CLR_RED);
 
-  // Chữ STOP hoặc CAM ở giữa
-  dma_display->fillRect(7, 4, 18, 8, CLR_BLACK);
+  // Khung đen che giữa để chữ STOP nổi bật và cân đối hoàn hảo
+  dma_display->fillRect(3, 4, 26, 9, CLR_BLACK);
   dma_display->setTextColor(blink ? CLR_WHITE : CLR_RED);
   dma_display->setTextSize(1);
-  dma_display->setCursor(8, 5);
+  dma_display->setCursor(5, 5);
   dma_display->print("STOP");
 }
 
@@ -506,7 +465,6 @@ void drawExitSign() {
   dma_display->fillRect(1, 1, 30, 14, dma_display->color565(0, 80, 20));
   dma_display->drawRect(0, 0, 32, 16, CLR_GREEN);
 
-  // Chữ EXIT nổi bật
   dma_display->setTextColor(CLR_WHITE);
   dma_display->setTextSize(1);
   dma_display->setCursor(5, 4);
@@ -519,12 +477,12 @@ void drawExitSign() {
 }
 
 // Vẽ chế độ NGÃ 3: SO SÁNH 2 HƯỚNG TRÁI / PHẢI
-// Hiển thị trực quan: Hướng nào ĐẦY (Đỏ), Hướng nào TRỐNG (Xanh), Nên đi bên nào!
+// Chỉ bật khi thực tế có nhánh TRÁI và nhánh PHẢI
 void drawJunctionComparison(uint8_t step, bool blink) {
-  // 1. Vạch phân cách trung tâm (X: 15..16)
+  // 1. Vạch phân cách trung tâm (X: 15)
   dma_display->drawFastVLine(15, 0, 15, CLR_DARK_GRAY);
 
-  // 2. Đánh giá màu sắc & icon cho NỬA TRÁI (X: 0..14)
+  // 2. NỬA TRÁI (X: 0..14)
   uint16_t leftColor;
   bool leftRecommended = (gState.recommendedSide == "LEFT");
 
@@ -538,32 +496,27 @@ void drawJunctionComparison(uint8_t step, bool blink) {
     leftColor = CLR_GREEN;     // Thông thoáng cao
   }
 
-  // Vẽ nửa trái:
   if (gState.routeLeft.isBlocked) {
-    // Dấu X nhỏ báo cấm rẽ trái
     dma_display->drawLine(3, 3, 11, 11, CLR_RED);
     dma_display->drawLine(11, 3, 3, 11, CLR_RED);
   } else {
-    // Mũi tên chỉ rẽ Trái
     int offset = leftRecommended ? (step % 4) : 0;
     int arrowTipX = 3 - offset;
     if (arrowTipX < 1) arrowTipX += 4;
 
-    // Vẽ mũi tên trái nhỏ (vừa vặn khung 14 pixel)
     dma_display->drawFastHLine(arrowTipX, 7, 8, leftColor);
     dma_display->drawPixel(arrowTipX + 1, 6, leftColor);
     dma_display->drawPixel(arrowTipX + 1, 8, leftColor);
     dma_display->drawPixel(arrowTipX + 2, 5, leftColor);
     dma_display->drawPixel(arrowTipX + 2, 9, leftColor);
 
-    // Nếu đây là hướng NÊN ĐI: vẽ khung xanh nhấp nháy hoặc chữ "OK"
-    if (leftRecommended && blink) {
-      dma_display->drawPixel(1, 1, CLR_GREEN);
-      dma_display->drawPixel(13, 1, CLR_GREEN);
+    // Thanh sáng xanh ở đỉnh báo nhánh khuyên nên đi
+    if (leftRecommended) {
+      dma_display->drawFastHLine(1, 1, 13, blink ? CLR_GREEN : CLR_BLACK);
     }
   }
 
-  // 3. Đánh giá màu sắc & icon cho NỬA PHẢI (X: 16..31)
+  // 3. NỬA PHẢI (X: 16..31)
   uint16_t rightColor;
   bool rightRecommended = (gState.recommendedSide == "RIGHT");
 
@@ -577,13 +530,10 @@ void drawJunctionComparison(uint8_t step, bool blink) {
     rightColor = CLR_GREEN;     // Thông thoáng cao
   }
 
-  // Vẽ nửa phải:
   if (gState.routeRight.isBlocked) {
-    // Dấu X nhỏ báo cấm rẽ phải
     dma_display->drawLine(20, 3, 28, 11, CLR_RED);
     dma_display->drawLine(28, 3, 20, 11, CLR_RED);
   } else {
-    // Mũi tên chỉ rẽ Phải
     int offset = rightRecommended ? (step % 4) : 0;
     int arrowTipX = 27 + offset;
     if (arrowTipX > 29) arrowTipX -= 4;
@@ -594,25 +544,22 @@ void drawJunctionComparison(uint8_t step, bool blink) {
     dma_display->drawPixel(arrowTipX - 2, 5, rightColor);
     dma_display->drawPixel(arrowTipX - 2, 9, rightColor);
 
-    if (rightRecommended && blink) {
-      dma_display->drawPixel(17, 1, CLR_GREEN);
-      dma_display->drawPixel(30, 1, CLR_GREEN);
+    if (rightRecommended) {
+      dma_display->drawFastHLine(17, 1, 13, blink ? CLR_GREEN : CLR_BLACK);
     }
   }
 
   // 4. Thanh tỷ lệ độ thông thoáng ở hàng đáy (Y: 15)
-  // Nửa trái: độ thoáng = 1.0 - k
   int leftClearPixels = max(1, min(14, (int)((1.0f - gState.routeLeft.k) * 14.0f)));
   dma_display->drawFastHLine(0, 15, leftClearPixels, leftColor);
 
-  // Nửa phải:
   int rightClearPixels = max(1, min(14, (int)((1.0f - gState.routeRight.k) * 14.0f)));
   dma_display->drawFastHLine(31 - rightClearPixels, 15, rightClearPixels, rightColor);
 }
 
 // Vẽ chế độ CHỜ (STANDBY / SẴN SÀNG)
 void drawStandbyScreen(uint8_t step) {
-  // Chữ WiEvac cách điệu
+  // Chữ WiEvac cách điệu ở giữa
   dma_display->setTextColor(CLR_CYAN);
   dma_display->setTextSize(1);
   dma_display->setCursor(2, 4);
@@ -650,111 +597,90 @@ void setup() {
   mxconfig.gpio.r2 = R2_PIN;
   mxconfig.gpio.g2 = G2_PIN;
   mxconfig.gpio.b2 = B2_PIN;
-  mxconfig.gpio.a = A_PIN;
-  mxconfig.gpio.b = B_PIN;
-  mxconfig.gpio.c = C_PIN;
-  mxconfig.gpio.d = D_PIN;
-  mxconfig.gpio.e = E_PIN;
+  mxconfig.gpio.a  = A_PIN;
+  mxconfig.gpio.b  = B_PIN;
+  mxconfig.gpio.c  = C_PIN;
+  mxconfig.gpio.d  = D_PIN;
+  mxconfig.gpio.e  = E_PIN;
   mxconfig.gpio.lat = LAT_PIN;
-  mxconfig.gpio.oe = OE_PIN;
+  mxconfig.gpio.oe  = OE_PIN;
   mxconfig.gpio.clk = CLK_PIN;
-
-  // Nếu panel của bạn dùng chip quét đặc biệt, mở ghi chú 1 trong 2 dòng dưới:
-  // mxconfig.driver = HUB75_I2S_CFG::SHIFTREG;
-  // mxconfig.driver = HUB75_I2S_CFG::FM6126A;
+  mxconfig.clkfreq = HUB75_I2S_CFG::HZ_10M;
 
   dma_display = new MatrixPanel_I2S_DMA(mxconfig);
   dma_display->begin();
-  dma_display->setBrightness8(85); // Độ sáng chuẩn (0-255)
-  dma_display->clearScreen();
-
-  // Test màu chào mừng
-  dma_display->fillScreen(CLR_CYAN);
-  delay(300);
+  dma_display->setBrightness8(90);  // Độ sáng dịu mắt, tiết kiệm nguồn
   dma_display->clearScreen();
 
   // Khởi động mạng
   setupWifi();
   mqttClient.setServer(MQTT_HOST, MQTT_PORT);
   mqttClient.setCallback(onMqttMessage);
-  mqttClient.setBufferSize(2048); // Đảm bảo bộ đệm đủ lớn cho bản tin WiEvac
+  mqttClient.setBufferSize(2048);
 }
 
 void loop() {
-  // 1. Duy trì kết nối mạng MQTT
-  if (WiFi.status() == WL_CONNECTED) {
-    checkMqttConnection();
-    mqttClient.loop();
-  }
+  // 1. Duy trì kết nối MQTT
+  checkMqttConnection();
+  mqttClient.loop();
 
-  // 2. Gửi heartbeat định kỳ 5 giây
+  // 2. Gửi bản tin Heartbeat định kỳ mỗi 5 giây
   unsigned long now = millis();
   if (now - lastHeartbeat >= 5000) {
     lastHeartbeat = now;
     if (mqttClient.connected()) {
-      publishAck(gState.sequence, "heartbeat", "sign_alive");
+      publishAck(gState.sequence, "heartbeat", "sign_online_active");
     }
   }
 
-  // 3. Tự động chuyển về STANDBY nếu lệnh đã quá hạn (valid_until)
-  if (gState.validUntil > 0 && (millis() / 1000) > gState.validUntil) {
-    if (gState.mode != MODE_STANDBY && !gState.simRunning) {
-      gState.mode = MODE_STANDBY;
-      gState.validUntil = 0;
-    }
-  }
-
-  // 4. Vẽ khung hình hiển thị (Cập nhật 20 FPS = mỗi 50ms)
+  // 3. Cập nhật hoạt ảnh và hiển thị ở 20 FPS (mỗi 50ms)
   if (now - lastAnimTick >= 50) {
     lastAnimTick = now;
     animStep++;
-    if (animStep % 6 == 0) blinkToggle = !blinkToggle;
+
+    // Nhấp nháy ở chu kỳ 500ms
+    if (animStep % 10 == 0) {
+      blinkToggle = !blinkToggle;
+    }
 
     dma_display->clearScreen();
 
-    // Chọn màu dựa theo độ thông thoáng hiện tại
-    uint16_t dynamicColor = CLR_GREEN;
-    if (gState.loadLevel == "congested") {
-      dynamicColor = CLR_RED;
-    } else if (gState.loadLevel == "busy") {
-      dynamicColor = CLR_YELLOW;
-    }
-
-    // Hiển thị theo từng chế độ
+    // Lựa chọn chế độ hiển thị
     switch (gState.mode) {
+      case MODE_STANDBY:
+        drawStandbyScreen(animStep);
+        break;
+
       case MODE_SINGLE_ARROW:
-        if (gState.direction == "LEFT") {
-          drawStreamingArrowLeft(dynamicColor, animStep % 9);
-        } else if (gState.direction == "RIGHT") {
-          drawStreamingArrowRight(dynamicColor, animStep % 9);
-        } else {
-          drawStreamingArrowUp(dynamicColor, animStep);
+        {
+          uint16_t arrowClr = CLR_GREEN;
+          if (gState.loadLevel == "congested") arrowClr = CLR_RED;
+          else if (gState.loadLevel == "busy") arrowClr = CLR_YELLOW;
+
+          if (gState.direction == "LEFT") {
+            drawStreamingArrowLeft(arrowClr, animStep);
+          } else if (gState.direction == "RIGHT") {
+            drawStreamingArrowRight(arrowClr, animStep);
+          } else {
+            drawStreamingArrowUp(arrowClr, animStep);
+          }
         }
         break;
 
-      case MODE_JUNCTION:
-        // Đặt tại ngã 3: hiển thị so sánh 2 nhánh Trái - Phải
-        drawJunctionComparison(animStep, blinkToggle);
-        break;
-
       case MODE_TURN_BACK:
-        // Hành lang tắc nghẽn -> yêu cầu quay lại
         drawTurnBackWarning(blinkToggle);
         break;
 
       case MODE_BLOCKED:
-        // Tuyến đường nguy hiểm / Cấm vào
         drawBlockedWarning(blinkToggle);
         break;
 
-      case MODE_EXIT:
-        // Cửa thoát hiểm
-        drawExitSign();
+      case MODE_JUNCTION:
+        drawJunctionComparison(animStep, blinkToggle);
         break;
 
-      case MODE_STANDBY:
-      default:
-        drawStandbyScreen(animStep);
+      case MODE_EXIT:
+        drawExitSign();
         break;
     }
   }

@@ -605,7 +605,6 @@ void setup() {
   mxconfig.gpio.lat = LAT_PIN;
   mxconfig.gpio.oe  = OE_PIN;
   mxconfig.gpio.clk = CLK_PIN;
-  mxconfig.clkfreq = HUB75_I2S_CFG::HZ_10M;
 
   dma_display = new MatrixPanel_I2S_DMA(mxconfig);
   dma_display->begin();

@@ -29,10 +29,13 @@ Thumbs.db
 .agents/
 .codex/
 
-# Local prototypes and draft experiments
-ver1/
-nhap/
-Mo_hinh.docx
-Thong_bao.docx
-Thuat_toan.docx
-task.txt
+# Local reports, prototypes, and draft experiments
+/báo cáo/
+/code cũ/
+
+# Per-device ESP32 Wi-Fi/MQTT configuration
+csi_evacuation/esp32_guidance/include/device_config.h
+
+
+
+.codex-loop/

@@ -130,6 +130,16 @@ không còn đường thoát và đối chiếu đường đi tĩnh.
 
 ## Giới hạn
 
+## Phase 1: tải người ước lượng và phân luồng
+
+`k(e)` là tỷ lệ lấp đầy tương đối do simulator/CSI đã chuẩn hóa cung cấp, **không phải bộ đếm người**. Pi edge giữ `measured_k`, EMA `filtered_k`, `estimated_load = filtered_k × capacity`, confidence và thời điểm cập nhật. Dữ liệu UNKNOWN/STALE không được coi là hành lang trống.
+
+Sức chứa lưu trữ dùng `capacityPeople` (hoặc `length × widthMeters × WIEVAC_PEOPLE_PER_SQM`); thông hành dùng `flowCapacity` (hoặc `widthMeters × WIEVAC_SPECIFIC_FLOW_PER_METER`, có hệ số cầu thang). Mô phỏng chỉ chuyển tải liên tục, giới hạn bởi tải nguồn, flow và chỗ trống đích; sai số bảo toàn được công bố qua `conservationError`. Hiệu chỉnh CSI được ghi riêng là `measurementCorrection`.
+
+D* Lite vẫn là thành phần duy nhất tìm tuyến an toàn, cập nhật tăng dần `g/rhs` khi chi phí cạnh đổi và trả tối đa hai ứng viên. `evacuation_optimizer.py` dùng `scipy.optimize.linprog(method="highs")` để phân bổ tải ngắn hạn toàn cục; khi solver lỗi, hệ thống ghi log và fallback 100% theo tuyến D* Lite tốt nhất. Đây chỉ là dự báo mô phỏng Phase 1 theo horizon, không phải thời gian sơ tán vật lý chính xác.
+
+Các tham số `WIEVAC_*` mới trong `.env.example` là giá trị simulator cần hiệu chuẩn tại hiện trường. Phase 2 mới xử lý CSI thô/AI, firmware, TLS/ACL, phần cứng và kiểm định an toàn thực tế.
+
 Cần hiệu chuẩn CSI tại hiện trường để ánh xạ tín hiệu sang `k(e)`. Simulator
 không thay thế phần cứng CSI, LED matrix hay loa/DFPlayer thực; chúng vẫn phải
 gửi ACK MQTT theo giao thức hiện có.

@@ -6,6 +6,7 @@ const fs = require("fs");
 const path = require("path");
 const { Aedes } = require("aedes");
 const net = require("net");
+const { normalizeMapData, hasInvalid3DValues, validateMapData } = require("./mapSchema");
 
 const app = express();
 app.use(cors());
@@ -20,12 +21,32 @@ const io = new Server(server, {
 });
 
 const MAP_FILE = path.join(__dirname, "map_data.json");
-const DEFAULT_CORRIDOR_WIDTH_METERS = 1.2;
-const DEFAULT_PEOPLE_PER_SQM = Number(process.env.WIEVAC_PEOPLE_PER_SQM || 2);
 const HTTP_PORT = Number(process.env.WIEVAC_HTTP_PORT || 3001);
 const MQTT_PORT = Number(process.env.WIEVAC_MQTT_PORT || 1883);
+let simulationRunning = false;
 
-function normalizeMapData(mapData) {
+/* function normalizeMapData(mapData) {
+  const areas = Array.isArray(mapData?.areas)
+    ? mapData.areas.map((area) => {
+        const visual = area?.visual3d || {};
+        const defaults = AREA_3D_DEFAULTS[area?.type] || AREA_3D_DEFAULTS.room;
+        const positive = (value, fallback) => Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : fallback;
+        const rotation = Number.isFinite(Number(visual.rotationDegrees)) ? Number(visual.rotationDegrees) : 0;
+        const sizeMode = visual.sizeMode === "manual" ? "manual" : "auto";
+        return {
+          ...area,
+          visual3d: {
+            widthMeters: positive(visual.widthMeters, defaults.widthMeters),
+            depthMeters: positive(visual.depthMeters, defaults.depthMeters),
+            heightMeters: positive(visual.heightMeters, defaults.heightMeters),
+            rotationDegrees: rotation,
+            sizeMode,
+            color: typeof visual.color === "string" && /^#[0-9a-fA-F]{6}$/.test(visual.color)
+              ? visual.color : (AREA_3D_COLORS[area?.type] || AREA_3D_COLORS.room),
+          },
+        };
+      })
+    : [];
   const edges = Array.isArray(mapData?.edges)
     ? mapData.edges.map((edge) => {
         const width = Number(edge.widthMeters);
@@ -35,18 +56,84 @@ function normalizeMapData(mapData) {
         const capacityPeople = Number.isFinite(explicitCapacity)
           ? explicitCapacity
           : length * (hasValidWidth ? width : DEFAULT_CORRIDOR_WIDTH_METERS) * DEFAULT_PEOPLE_PER_SQM;
+        const explicitFlow = Number(edge.flowCapacity);
+        const flowCapacity = Number.isFinite(explicitFlow) && explicitFlow > 0
+          ? explicitFlow : (hasValidWidth ? width : DEFAULT_CORRIDOR_WIDTH_METERS) * Number(process.env.WIEVAC_SPECIFIC_FLOW_PER_METER || 1.3);
         const hazard = Math.max(0, Number(edge.hazard) || 0);
         return {
           ...edge,
           widthMeters: hasValidWidth ? width : DEFAULT_CORRIDOR_WIDTH_METERS,
           widthEstimated: hasValidWidth ? Boolean(edge.widthEstimated) : true,
           capacityPeople,
+          flowCapacity,
+          initialOccupancy: Math.max(0, Math.min(1, Number(edge.initialOccupancy ?? 0.35))),
           hazard,
         };
       })
     : [];
-  return { ...mapData, edges };
+  const rawScene = mapData?.scene3d || {};
+  const positiveScene = (key) => Number.isFinite(Number(rawScene[key])) && Number(rawScene[key]) > 0
+    ? Number(rawScene[key]) : DEFAULT_SCENE_3D[key];
+  return {
+    ...mapData,
+    schemaVersion: 2,
+    scene3d: {
+      planUnitsPerMeter: positiveScene("planUnitsPerMeter"),
+      floorHeightMeters: positiveScene("floorHeightMeters"),
+      floorExplodeMeters: Number.isFinite(Number(rawScene.floorExplodeMeters)) && Number(rawScene.floorExplodeMeters) >= 0
+        ? Number(rawScene.floorExplodeMeters) : DEFAULT_SCENE_3D.floorExplodeMeters,
+      gridSizeMeters: positiveScene("gridSizeMeters"),
+    },
+    areas,
+    edges,
+  };
 }
+
+function hasInvalid3DValues(mapData) {
+  const positive = (value) => Number.isFinite(Number(value)) && Number(value) > 0;
+  const scene = mapData?.scene3d;
+  if (scene) {
+    for (const field of ["planUnitsPerMeter", "floorHeightMeters", "gridSizeMeters"]) {
+      if (scene[field] !== undefined && !positive(scene[field])) return `scene3d.${field} must be greater than 0`;
+    }
+    if (scene.floorExplodeMeters !== undefined && (!Number.isFinite(Number(scene.floorExplodeMeters)) || Number(scene.floorExplodeMeters) < 0)) {
+      return "scene3d.floorExplodeMeters must be non-negative";
+    }
+  }
+  for (const area of mapData?.areas || []) {
+    const visual = area?.visual3d;
+    if (!visual) continue;
+    for (const field of ["widthMeters", "depthMeters", "heightMeters"]) {
+      if (visual[field] !== undefined && !positive(visual[field])) return `Area ${area.id} visual3d.${field} must be greater than 0`;
+    }
+    if (visual.rotationDegrees !== undefined && !Number.isFinite(Number(visual.rotationDegrees))) return `Area ${area.id} visual3d.rotationDegrees must be finite`;
+    if (visual.sizeMode !== undefined && visual.sizeMode !== "auto" && visual.sizeMode !== "manual") return `Area ${area.id} visual3d.sizeMode must be auto or manual`;
+    if (visual.color !== undefined && (typeof visual.color !== "string" || !/^#[0-9a-fA-F]{6}$/.test(visual.color))) return `Area ${area.id} visual3d.color must be a hex color`;
+  }
+  return null;
+}
+
+function validateMapDataOld(mapData) {
+  if (!Array.isArray(mapData?.areas) || !Array.isArray(mapData?.edges)) return "Map must include areas and edges arrays";
+  const areaIds = new Set();
+  for (const area of mapData.areas) {
+    if (!area?.id || areaIds.has(area.id)) return "Area IDs must be unique";
+    areaIds.add(area.id);
+  }
+  const edgeIds = new Set();
+  for (const edge of mapData.edges) {
+    if (!edge?.id || edgeIds.has(edge.id)) return "Edge IDs must be unique";
+    edgeIds.add(edge.id);
+    if (!areaIds.has(edge.areaA_id) || !areaIds.has(edge.areaB_id)) return `Edge ${edge.id} references an unknown area`;
+    if (edge.areaA_id === edge.areaB_id) return `Edge ${edge.id} cannot be a self-loop`;
+    if (!(Number(edge.length) > 0) || !(Number(edge.widthMeters) > 0)) return `Edge ${edge.id} needs length and widthMeters greater than 0`;
+    if (edge.capacityPeople !== undefined && edge.capacityPeople !== '' && !(Number(edge.capacityPeople) > 0)) return `Edge ${edge.id} capacityPeople must be greater than 0`;
+    if (edge.flowCapacity !== undefined && edge.flowCapacity !== '' && !(Number(edge.flowCapacity) > 0)) return `Edge ${edge.id} flowCapacity must be greater than 0`;
+    if (edge.initialOccupancy !== undefined && (Number(edge.initialOccupancy) < 0 || Number(edge.initialOccupancy) > 1)) return `Edge ${edge.id} initialOccupancy must be between 0 and 1`;
+  }
+  for (const device of mapData.devices || []) if (!device?.id || !areaIds.has(device.area_id)) return "Every device must have an ID and reference an existing area";
+  return null;
+} */
 
 // Ensure map file exists
 if (!fs.existsSync(MAP_FILE)) {
@@ -70,6 +157,9 @@ async function startServer() {
   });
 
   app.post("/api/map", (req, res) => {
+    if (simulationRunning) return res.status(409).json({ error: "Stop or reset the simulation before changing map topology" });
+    const invalid3DValues = hasInvalid3DValues(req.body);
+    if (invalid3DValues) return res.status(400).json({ error: invalid3DValues });
     const invalidExplicitWidth = Array.isArray(req.body?.edges)
       && req.body.edges.some((edge) => (
         edge.widthMeters !== undefined
@@ -81,9 +171,8 @@ async function startServer() {
       return res.status(400).json({ error: "Every corridor widthMeters must be greater than 0" });
     }
     const mapData = normalizeMapData(req.body);
-    if (!Array.isArray(mapData.areas) || !Array.isArray(req.body?.edges)) {
-      return res.status(400).json({ error: "Map must include areas and edges arrays" });
-    }
+    const validationError = validateMapData(mapData);
+    if (validationError) return res.status(400).json({ error: validationError });
     fs.writeFile(MAP_FILE, JSON.stringify(mapData, null, 2), (err) => {
       if (err) return res.status(500).json({ error: "Failed to save map" });
 
@@ -121,6 +210,7 @@ async function startServer() {
           });
         }
 
+        simulationRunning = true;
         // Publish start signal to MQTT
         aedes.publish({
           topic: "building/simulation/start",
@@ -149,6 +239,7 @@ async function startServer() {
   });
 
   app.post("/api/simulate/stop", (req, res) => {
+    simulationRunning = false;
     aedes.publish({
       topic: "building/simulation/stop",
       payload: JSON.stringify({ action: "stop" }),
@@ -159,6 +250,7 @@ async function startServer() {
   });
 
   app.post("/api/simulate/reset", (req, res) => {
+    simulationRunning = false;
     aedes.publish({
       topic: "building/simulation/reset",
       payload: JSON.stringify({ action: "reset" }),
@@ -166,6 +258,20 @@ async function startServer() {
       retain: false,
     });
     res.json({ success: true, message: "Simulation reset signal sent to Pi 5" });
+  });
+
+  app.post("/api/simulation/behavior", (req, res) => {
+    const numericFields = ["guidance_compliance", "familiar_route_weight", "follow_crowd_weight", "random_safe_route_weight", "forecast_horizon_seconds", "forecast_lookahead_seconds", "forecast_scenarios", "scenario_seed"];
+    if (!req.body || numericFields.some((field) => req.body[field] !== undefined && !Number.isFinite(Number(req.body[field])))) {
+      return res.status(400).json({ error: "Simulation behavior settings must be finite numbers" });
+    }
+    aedes.publish({
+      topic: "building/simulation/behavior",
+      payload: JSON.stringify(req.body),
+      qos: 1,
+      retain: true,
+    });
+    res.json({ success: true, message: "Simulation behavior settings sent to Pi 5" });
   });
 
   app.post("/api/occupancy/adjust", (req, res) => {
@@ -254,6 +360,12 @@ async function startServer() {
         } catch (e) {
           console.error("Failed to parse occupancy data", e);
         }
+      } else if (packet.topic === "building/occupancy/state") {
+        try {
+          io.emit("occupancy_state", JSON.parse(packet.payload.toString()));
+        } catch (e) {
+          console.error("Failed to parse occupancy state", e);
+        }
       } else if (packet.topic === "building/incident_ack") {
         try {
           const data = JSON.parse(packet.payload.toString());
@@ -271,6 +383,7 @@ async function startServer() {
       } else if (packet.topic === "building/simulation/state") {
         try {
           const data = JSON.parse(packet.payload.toString());
+          simulationRunning = data.status === "running";
           io.emit("simulation_state", data);
         } catch (e) {
           console.error("Failed to parse simulation state", e);

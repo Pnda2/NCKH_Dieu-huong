@@ -1,12 +1,22 @@
 import json
+import json
 import math
 import time
+from pathlib import Path
 
 
 ACK_TIMEOUT_SECONDS = 3.0
 DEVICE_OFFLINE_SECONDS = 12.0
 COMMAND_HEARTBEAT_SECONDS = 5.0
 COMMAND_VALID_SECONDS = 8
+CONTENT_FILE = Path(__file__).with_name("guidance_content.json")
+
+
+def load_content() -> dict:
+    try:
+        return json.loads(CONTENT_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"version": 1, "intents": {}}
 
 
 class GuidanceController:
@@ -21,6 +31,8 @@ class GuidanceController:
         self.pending_acks = {}
         self.last_acks = {}
         self.offline_devices = set()
+        self.capabilities = {}
+        self.content = load_content()
         self.latest_state = {"decisions": {}, "devices": []}
         self._last_state_signature = None
         self._last_state_published_at = 0.0
@@ -45,6 +57,32 @@ class GuidanceController:
             if key in valid_ids
         }
         self.offline_devices.intersection_update(valid_ids)
+        self.capabilities = {key: value for key, value in self.capabilities.items() if key in valid_ids}
+
+    def set_capability(self, device_id, capability):
+        if device_id and isinstance(capability, dict):
+            self.capabilities[device_id] = dict(capability)
+
+    def _presentation(self, device, direction, decision, target_edge, valid_until):
+        intent = self.content.get("intents", {}).get(direction, self.content.get("intents", {}).get("NO_SAFE_ROUTE", {}))
+        occupancy = self._occupancy_ratio((decision or {}).get("k", 1.0))
+        load_level = "blocked" if direction == "NO_SAFE_ROUTE" else "congested" if occupancy >= .8 else "busy" if occupancy >= .5 else "clear"
+        capability = self.capabilities.get(device.get("id"), {})
+        display = capability.get("display", {}) if isinstance(capability.get("display"), dict) else {}
+        profile = device.get("presentationProfile") or "max7219"
+        supports_load = bool(display.get("supports_load_bar")) or profile == "large_display"
+        return {
+            "schema_version": 1,
+            "content_revision": self.content.get("version", 1),
+            "intent": direction,
+            "visual_intent": intent.get("visual_intent", "DO_NOT_ENTER"),
+            "alert_level": intent.get("alert_level", "critical"),
+            "load_level": load_level,
+            "audio_clip_id": intent.get("audio_clip_id", ""),
+            "min_repeat_seconds": intent.get("min_repeat_seconds", 0),
+            "layout": "large_arrow_alert_load" if supports_load else "max7219_arrow_alert",
+            "valid_until": valid_until,
+        }
 
     def _other_area(self, edge, area_id):
         if edge.get("areaA_id") == area_id:
@@ -92,6 +130,17 @@ class GuidanceController:
         except (TypeError, ValueError):
             return 1.2
 
+    @staticmethod
+    def _occupancy_ratio(value):
+        if isinstance(value, dict):
+            if value.get("status") in {"UNKNOWN", "STALE"}:
+                return 1.0
+            value = value.get("filtered_k", value.get("measured_k", 1.0))
+        try:
+            return max(0.0, min(1.0, float(value)))
+        except (TypeError, ValueError):
+            return 1.0
+
     def _receiving_capacity(self, edge_id, occupancy):
         edge = self.edge_map.get(edge_id, {})
         width = self._edge_width(edge_id)
@@ -105,7 +154,7 @@ class GuidanceController:
             or area_a.get("floor", 1) != area_b.get("floor", 1)
         )
         type_factor = 0.65 if is_stair_connection else 1.0
-        return width * max(0.0, 1.0 - float(occupancy)) * type_factor
+        return width * max(0.0, 1.0 - self._occupancy_ratio(occupancy)) * type_factor
 
     @staticmethod
     def _speaker_command(direction):
@@ -216,6 +265,9 @@ class GuidanceController:
             "valid_until": int(now) + COMMAND_VALID_SECONDS,
             "priority": "emergency",
         }
+        payload["presentation"] = self._presentation(
+            device, direction, decision, target_edge, payload["valid_until"]
+        )
         topic = device.get("topic") or (
             f"building/guidance/{device_type}/{device_id}"
         )
@@ -262,29 +314,29 @@ class GuidanceController:
             options = [
                 option
                 for option in route_options.get(area_id, [])
-                if option[1] not in blocked_edges
+                if option["edge_id"] not in blocked_edges
             ]
             if options:
                 sorted_options = sorted(
-                    options, key=lambda option: option[2], reverse=True
+                    options, key=lambda option: option.get("share", 0), reverse=True
                 )[:2]
-                route_total = sum(option[2] for option in sorted_options)
+                route_total = sum(option.get("share", 0) for option in sorted_options)
                 routes = [
                     {
-                        "next_area": neighbour,
-                        "edge_id": route_edge_id,
-                        "probability": round(probability / route_total, 3),
-                        "k": round(edge_occupancy.get(route_edge_id, 0.0), 3),
-                        "widthMeters": self._edge_width(route_edge_id),
+                        "next_area": option["next_area"],
+                        "edge_id": option["edge_id"],
+                        "probability": round(option.get("share", 0) / route_total, 3),
+                        "k": round(self._occupancy_ratio(edge_occupancy.get(option["edge_id"], 0.0)), 3),
+                        "widthMeters": self._edge_width(option["edge_id"]),
                         "receivingCapacity": round(
                             self._receiving_capacity(
-                                route_edge_id,
-                                edge_occupancy.get(route_edge_id, 0.0),
+                                option["edge_id"],
+                                edge_occupancy.get(option["edge_id"], 0.0),
                             ),
                             3,
                         ),
                     }
-                    for neighbour, route_edge_id, probability in sorted_options
+                    for option in sorted_options
                 ]
                 primary = routes[0]
                 decisions[area_id] = {

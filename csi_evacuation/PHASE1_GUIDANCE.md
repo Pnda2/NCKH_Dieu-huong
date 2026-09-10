@@ -95,3 +95,6 @@ hoàn tất mô phỏng.
 - Sau khi thêm/sửa thiết bị trên giao diện, phải bấm **Lưu**.
 - Giai đoạn 1 sử dụng simulator. Giai đoạn 2 sẽ thay simulator bằng driver GPIO,
   LED matrix, bộ phát âm thanh hoặc ESP32 mà không thay đổi giao thức lệnh.
+# Phase 1 guidance contract
+
+Thiết bị nhận `routes` với tối đa hai phần tử `{ target_edge, direction, probability }`. Xác suất là tỷ lệ phân luồng mô phỏng, tổng bằng 1 khi có tuyến an toàn; D* Lite cung cấp tuyến, optimizer chỉ quyết định tỷ lệ. Nếu optimizer fallback, một tuyến D* Lite được gửi với xác suất 1.0. CSI hiển thị là tải ước lượng chứ không phải số người đếm chính xác.

@@ -1,2 +1,3 @@
 # Direct Python dependency for csi_evacuation/pi_edge.
 paho-mqtt==2.1.0
+scipy==1.14.1

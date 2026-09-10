@@ -891,16 +891,6 @@ function App() {
 
               {selectedItem?.type === 'area' && (
                 <>
-                  <AreaForm
-                    area={selectedItem.data}
-                    allAreas={areas}
-                    stairwells={stairwells}
-                    corridors={corridors}
-                    onToggleCorridor={handleToggleCorridor}
-                    onChange={handleUpdateArea}
-                    onUpdateLanding={handleUpdateStairwellLanding}
-                    onDelete={() => handleDeleteArea(selectedItem.data.id)}
-                  />
                   <DeviceRegistryForm
                     area={selectedItem.data}
                     corridors={corridors}
@@ -911,12 +901,23 @@ function App() {
                     onUpdate={handleUpdateDevice}
                     onDelete={handleDeleteDevice}
                   />
+                  <AreaForm
+                    area={selectedItem.data}
+                    allAreas={areas}
+                    stairwells={stairwells}
+                    corridors={corridors}
+                    onToggleCorridor={handleToggleCorridor}
+                    onChange={handleUpdateArea}
+                    onUpdateLanding={handleUpdateStairwellLanding}
+                    onDelete={() => handleDeleteArea(selectedItem.data.id)}
+                  />
                 </>
               )}
               {selectedItem?.type === 'corridor' && (
                 <CorridorEdgeForm
                   corridor={selectedItem.data}
                   areas={areas}
+                  onSelectArea={(targetArea) => setSelectedItem({ type: 'area', data: targetArea })}
                   onChange={handleUpdateCorridor}
                   onDelete={() => handleDeleteCorridor(selectedItem.data.id)}
                 />
@@ -1329,6 +1330,36 @@ function App() {
                               </div>
                             </div>
                           )}
+                        </div>
+
+                        {/* Endpoint Signage Quick Links */}
+                        <div className="p-2 rounded bg-slate-950/60 border border-slate-800 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-400 text-[10px] font-mono uppercase font-semibold">Bảng hiệu 2 đầu hành lang</span>
+                            <span className="text-[9px] text-cyan-400 font-mono">Điều hướng</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-1.5 pt-0.5">
+                            {areaA && (
+                              <button
+                                type="button"
+                                onClick={() => setSelectedItem({ type: 'area', data: areaA })}
+                                className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 text-[11px] font-mono truncate border border-slate-700 text-center cursor-pointer transition-colors"
+                                title={`Xem bảng hiệu tại ${areaA.name}`}
+                              >
+                                📍 {areaA.name}
+                              </button>
+                            )}
+                            {areaB && (
+                              <button
+                                type="button"
+                                onClick={() => setSelectedItem({ type: 'area', data: areaB })}
+                                className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 text-[11px] font-mono truncate border border-slate-700 text-center cursor-pointer transition-colors"
+                                title={`Xem bảng hiệu tại ${areaB.name}`}
+                              >
+                                📍 {areaB.name}
+                              </button>
+                            )}
+                          </div>
                         </div>
 
                         {/* 6. Emergency Incident Button */}

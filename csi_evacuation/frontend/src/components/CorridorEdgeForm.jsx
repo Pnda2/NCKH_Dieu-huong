@@ -6,7 +6,7 @@ const AREA_DOT_COLOR = {
   exit: 'bg-emerald-500',
 };
 
-export default function CorridorEdgeForm({ corridor, areas, onChange, onDelete }) {
+export default function CorridorEdgeForm({ corridor, areas, onChange, onDelete, onSelectArea }) {
   const [name, setName] = useState(corridor.name || '');
   const [length, setLength] = useState(corridor.length || 10);
   const [widthMeters, setWidthMeters] = useState(corridor.widthMeters || 1.2);
@@ -137,6 +137,41 @@ export default function CorridorEdgeForm({ corridor, areas, onChange, onDelete }
             </div>
           </div>
         )}
+      </div>
+
+      {/* Gắn thiết bị bảng hiệu / loa tại 2 đầu hành lang */}
+      <div className="bg-slate-950/80 rounded border border-slate-800 p-2.5 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="text-slate-300 text-[10px] font-bold uppercase tracking-wider">
+            Bảng hiệu chỉ dẫn hành lang
+          </div>
+          <span className="text-[9px] text-cyan-400 font-mono">Gắn tại 2 đầu</span>
+        </div>
+        <p className="text-[11px] text-slate-400 leading-snug">
+          Bảng hiệu IoT được gắn tại các nút giao ở hai đầu hành lang để chỉ hướng người thoát nạn:
+        </p>
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          {areaA && (
+            <button
+              type="button"
+              onClick={() => onSelectArea?.(areaA)}
+              className="px-2 py-1.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-300 text-xs font-mono text-center cursor-pointer transition-colors flex flex-col items-center justify-center gap-0.5"
+            >
+              <span className="text-[9px] text-slate-400 uppercase">Đầu hành lang</span>
+              <span className="font-bold truncate w-full">📍 {areaA.name}</span>
+            </button>
+          )}
+          {areaB && (
+            <button
+              type="button"
+              onClick={() => onSelectArea?.(areaB)}
+              className="px-2 py-1.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-300 text-xs font-mono text-center cursor-pointer transition-colors flex flex-col items-center justify-center gap-0.5"
+            >
+              <span className="text-[9px] text-slate-400 uppercase">Đầu hành lang</span>
+              <span className="font-bold truncate w-full">📍 {areaB.name}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── 2. Điểm kết nối ── */}

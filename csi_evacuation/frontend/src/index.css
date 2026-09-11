@@ -114,9 +114,9 @@ button:not(:disabled):active { transform: translateY(1px); }
   display: flex; 
   align-items: center; 
   gap: 6px; 
-  padding: 6px 8px; 
+  padding: 4px; 
   border: 1px solid #1e293b; 
-  border-radius: 4px; 
+  border-radius: 6px; 
   background: #0f172a; 
   color: #f1f5f9; 
   font-size: 11px; 
@@ -124,17 +124,20 @@ button:not(:disabled):active { transform: translateY(1px); }
 }
 .scene3d-toolbar button { 
   border: 1px solid #334155; 
-  border-radius: 3px; 
-  padding: 3px 8px; 
+  border-radius: 4px; 
+  padding: 4px 10px; 
   background: #1e293b; 
   color: #e2e8f0; 
   font-size: 11px; 
   font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 .scene3d-toolbar button:hover { background: #334155; color: #ffffff; }
-.scene3d-view-modes { display: flex; gap: 2px; padding-right: 6px; border-right: 1px solid #334155; }
+.scene3d-view-modes { display: flex; gap: 2px; }
 .scene3d-toolbar .scene3d-view-modes button { display: none; }
-.scene3d-toolbar .scene3d-view-modes button.active { display: block; border-color: #2563eb; background: #1d4ed8; color: #ffffff; font-weight: 600; }
+.scene3d-toolbar .scene3d-view-modes button.active { display: block; border-color: #2563eb; background: #1d4ed8; color: #ffffff; font-weight: 600; cursor: pointer; }
+.scene3d-toolbar .scene3d-view-modes button.active:hover { background: #2563eb; }
 .scene3d-add-kind { display: flex; align-items: center; gap: 4px; color: #cbd5e1; font-size: 11px; }
 .scene3d-add-kind select { border: 1px solid #334155; border-radius: 3px; background: #1e293b; color: #f1f5f9; padding: 2px 6px; font-size: 11px; }
 .scene3d-label { 

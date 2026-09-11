@@ -92,6 +92,10 @@ function App() {
         setMode('view');
         setEditTool('select');
       }
+      if (data?.status === 'completed') {
+        notify('Sơ tán hoàn tất! Hệ thống sẽ tự động đặt lại sau 3 giây.', 'success');
+        setGuidanceState({ decisions: {}, devices: [] });
+      }
       if (data?.status === 'idle') {
         setOccupancyData(data.edgeOccupancy || {});
         setGuidanceState({ decisions: {}, devices: [] });

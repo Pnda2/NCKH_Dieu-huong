@@ -743,11 +743,12 @@ def simulation_loop(client, resume=False):
         publish_state(client, "running", step, sorted(last_trapped_ids))
 
         with state_lock:
-            reachable_load = sum(
-                edge_loads.get(edge_id, 0.0)
-                for edge_id in edge_loads
-                if edge_id not in last_trapped_ids
-            )
+            active_reachable_loads = [
+                load
+                for edge_id, load in edge_loads.items()
+                if edge_id not in last_trapped_ids and load > OCCUPANCY_EPSILON
+            ]
+            reachable_load = sum(active_reachable_loads)
             trapped_load = sum(
                 edge_loads.get(edge_id, 0.0)
                 for edge_id in last_trapped_ids
@@ -762,10 +763,14 @@ def simulation_loop(client, resume=False):
                     client, "trapped", step, sorted(last_trapped_ids), message
                 )
             else:
-                message = "Sơ tán hoàn tất: độ lấp đầy các hành lang đã về 0%."
+                message = "Sơ tán hoàn tất: 100% người đã đến lối thoát an toàn."
                 with state_lock:
-                    for edge_id, k in edge_occupancy.items():
-                        if k <= OCCUPANCY_EPSILON:
+                    for edge_id in list(edge_loads.keys()):
+                        if edge_id not in last_trapped_ids:
+                            evacuated_load += edge_loads[edge_id]
+                            edge_loads[edge_id] = 0.0
+                    for edge_id in list(edge_occupancy.keys()):
+                        if edge_id not in last_trapped_ids:
                             edge_occupancy[edge_id] = 0.0
                 publish_log(client, [make_log("complete", message)], step)
                 guidance_controller.stop_all(client)
@@ -774,6 +779,16 @@ def simulation_loop(client, resume=False):
                     "building/occupancy",
                     json.dumps({edge["id"]: 0.0 for edge in edges}),
                 )
+
+                def schedule_auto_reset(step_to_reset):
+                    time.sleep(3.5)
+                    with state_lock:
+                        if not simulation_active and simulation_step == step_to_reset:
+                            reset_simulation(client)
+
+                threading.Thread(
+                    target=schedule_auto_reset, args=(step,), daemon=True
+                ).start()
             break
 
         sleep_for = TICK_SECONDS - (time.monotonic() - tick_started)

@@ -1239,41 +1239,12 @@ function App() {
                           <div className="text-slate-300 text-xs mt-0.5">{statusConfig.desc}</div>
                         </div>
 
-                        {/* 3. Metrics Matrix */}
-                        <div className="grid grid-cols-2 gap-1.5 font-mono">
-                          <div className="bg-slate-950/60 rounded border border-slate-800 p-2">
-                            <div className="text-slate-400 text-[10px]">MẬT ĐỘ LẤP ĐẦY</div>
-                            <div className={`text-xl font-bold mt-0.5 ${isBlocked || ratio >= 0.8 ? 'text-red-400' : ratio >= 0.5 ? 'text-amber-400' : 'text-emerald-400'
-                              }`}>
-                              {densityPct}%
-                            </div>
-                          </div>
-                          <div className="bg-slate-950/60 rounded border border-slate-800 p-2">
-                            <div className="text-slate-400 text-[10px]">SỐ NGƯỜI QUY ĐỔI</div>
-                            <div className="text-xl font-bold text-white mt-0.5">
-                              {curPeople} <span className="text-[10px] font-normal text-slate-400">/ {capPeople}</span>
-                            </div>
-                          </div>
-                          <div className="bg-slate-950/60 rounded border border-slate-800 p-2">
-                            <div className="text-slate-400 text-[10px]">VẬN TỐC DÒNG</div>
-                            <div className="text-xl font-bold text-blue-400 mt-0.5">
-                              {speed} <span className="text-[10px] font-normal text-slate-400">m/s</span>
-                            </div>
-                          </div>
-                          <div className="bg-slate-950/60 rounded border border-slate-800 p-2">
-                            <div className="text-slate-400 text-[10px]">BỀ RỘNG</div>
-                            <div className="text-xl font-bold text-white mt-0.5">
-                              {width.toFixed(1)} <span className="text-[10px] font-normal text-slate-400">m</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* 4. Guidance note */}
+                        {/* 3. Guidance note */}
                         <div className="bg-slate-950/50 rounded border border-slate-800 p-2 text-xs text-slate-300 leading-relaxed">
                           {statusConfig.advice}
                         </div>
 
-                        {/* 5. Collapsible Technical Details */}
+                        {/* 4. Collapsible Technical Details & Metrics */}
                         <div className="border border-slate-800 rounded bg-slate-950/40 overflow-hidden">
                           <button
                             type="button"
@@ -1281,15 +1252,45 @@ function App() {
                             className="w-full px-3 py-2 flex items-center justify-between text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/50 transition-colors cursor-pointer"
                           >
                             <span className="font-mono text-[11px] text-slate-300">
-                              {showCorridorDetails ? '▼ THÔNG SỐ KỸ THUẬT' : '▶ THÔNG SỐ KỸ THUẬT'}
+                              {showCorridorDetails ? '▼ THÔNG SỐ CHI TIẾT' : '▶ THÔNG SỐ CHI TIẾT'}
                             </span>
-                            <span className="text-[10px] text-slate-500 font-mono">
-                              {showCorridorDetails ? 'Thu gọn' : 'Chi tiết'}
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              {showCorridorDetails ? 'Thu gọn' : 'Mở rộng'}
                             </span>
                           </button>
 
                           {showCorridorDetails && (
-                            <div className="p-2.5 border-t border-slate-800 space-y-1.5 text-xs text-slate-300 font-mono">
+                            <div className="p-2.5 border-t border-slate-800 space-y-2.5">
+                              {/* 4 Metrics Matrix */}
+                              <div className="grid grid-cols-2 gap-1.5 font-mono">
+                                <div className="bg-slate-950/60 rounded border border-slate-800 p-2">
+                                  <div className="text-slate-400 text-[10px]">MẬT ĐỘ LẤP ĐẦY</div>
+                                  <div className={`text-xl font-bold mt-0.5 ${isBlocked || ratio >= 0.8 ? 'text-red-400' : ratio >= 0.5 ? 'text-amber-400' : 'text-emerald-400'
+                                    }`}>
+                                    {densityPct}%
+                                  </div>
+                                </div>
+                                <div className="bg-slate-950/60 rounded border border-slate-800 p-2">
+                                  <div className="text-slate-400 text-[10px]">SỐ NGƯỜI QUY ĐỔI</div>
+                                  <div className="text-xl font-bold text-white mt-0.5">
+                                    {curPeople} <span className="text-[10px] font-normal text-slate-400">/ {capPeople}</span>
+                                  </div>
+                                </div>
+                                <div className="bg-slate-950/60 rounded border border-slate-800 p-2">
+                                  <div className="text-slate-400 text-[10px]">VẬN TỐC DÒNG</div>
+                                  <div className="text-xl font-bold text-blue-400 mt-0.5">
+                                    {speed} <span className="text-[10px] font-normal text-slate-400">m/s</span>
+                                  </div>
+                                </div>
+                                <div className="bg-slate-950/60 rounded border border-slate-800 p-2">
+                                  <div className="text-slate-400 text-[10px]">BỀ RỘNG</div>
+                                  <div className="text-xl font-bold text-white mt-0.5">
+                                    {width.toFixed(1)} <span className="text-[10px] font-normal text-slate-400">m</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="space-y-1.5 text-xs text-slate-300 font-mono pt-1 border-t border-slate-800/80">
                               <div className="flex justify-between py-0.5 border-b border-slate-900">
                                 <span className="text-slate-400">Cảm biến</span>
                                 <span className="text-blue-400">WiFi CSI Sensing</span>
@@ -1376,6 +1377,7 @@ function App() {
                                   />
                                 </div>
                               </div>
+                            </div>
                             </div>
                           )}
                         </div>

@@ -658,6 +658,27 @@ def simulation_loop(client, resume=False):
     last_trapped_ids = set()
     action = "Resumed" if resume else "Started"
     print(f"[SIM] {action} with equivalent corridor load {sum(edge_occupancy.values()):.2f}.")
+
+    with state_lock:
+        graph, edge_map = build_graph()
+        observed_states = edge_states or edge_state_snapshot()
+        exits, distances, route_options = compute_routes(
+            graph, edge_map, observed_states
+        )
+        latest_forecast = compute_forecast(edge_map_all, exits, distances, route_options)
+        exits, distances, route_options = compute_routes(
+            graph, edge_map, planning_occupancy(observed_states, latest_forecast)
+        )
+        route_options = optimize_routes(route_options, edge_map_all)
+
+    guidance_controller.update(
+        client,
+        route_options,
+        distances,
+        dict(edge_occupancy),
+        exits,
+        blocked_edges,
+    )
     publish_state(client, "running", step)
 
     while simulation_active and not shutting_down:
@@ -1131,6 +1152,24 @@ def on_message(client, userdata, msg):
                 )
             if not simulation_active:
                 publish_live_guidance(client)
+            else:
+                all_edges = {edge["id"]: edge for edge in map_config.get("edges", [])}
+                with state_lock:
+                    graph, edge_map = build_graph()
+                    observed_states = edge_states or edge_state_snapshot()
+                    exits, distances, route_options = compute_routes(
+                        graph, edge_map, observed_states
+                    )
+                    route_options = optimize_routes(route_options, all_edges)
+                guidance_controller.update(
+                    client,
+                    route_options,
+                    distances,
+                    dict(edge_occupancy),
+                    exits,
+                    blocked_edges,
+                    force=True,
+                )
         except Exception as exc:
             print("Error parsing incident:", exc)
 

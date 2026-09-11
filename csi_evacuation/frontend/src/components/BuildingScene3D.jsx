@@ -281,11 +281,8 @@ const PeopleDots = React.memo(function PeopleDots({ corridorModels, metrics, occ
 
       return Array.from({ length: count }, (_, dotIndex) => {
         let movingTowardA = false;
-        let speed = 0.035;
-
         if (isBlocked) {
           // When blocked, people turn around and retreat backwards away from the blockage
-          speed = 0.042;
           if (totalMovement > 0) {
             // Follow active simulation retreat flow
             movingTowardA = (dotIndex + .5) / Math.max(1, count) < towardA / totalMovement;
@@ -313,7 +310,7 @@ const PeopleDots = React.memo(function PeopleDots({ corridorModels, metrics, occ
           isBlocked,
           from: movingTowardA ? segment.end : segment.start,
           to: movingTowardA ? segment.start : segment.end,
-          speed,
+          speed: isBlocked ? 0.042 : 0.035,
           ...dotPlacement(corridor.id, dotIndex, usableWidth),
         };
       });
@@ -352,20 +349,25 @@ function GuidanceArrow3D({ from, to, probability = 1 }) {
   const dz = to[2] - from[2];
   const length = Math.hypot(dx, dz) || 1;
   const angle = Math.atan2(dx, dz);
-  const count = Math.max(1, Math.min(3, Math.floor(length / 0.9)));
+  // Dòng mũi tên dày dặn, chạy liên tục không đứt đoạn (khoảng 0.65m một mũi tên, tối thiểu 3 mũi tên)
+  const count = Math.max(3, Math.min(8, Math.round(length / 0.65)));
   const chevronRefs = useRef([]);
 
   useFrame(({ clock }) => {
+    // Tốc độ dòng chảy nguyên bản
     const t = clock.getElapsedTime() * 0.42;
     for (let i = 0; i < count; i += 1) {
       const el = chevronRefs.current[i];
       if (!el) continue;
-      const baseOffset = (i + 0.5) / count;
-      const phase = 0.12 + ((baseOffset + t) % 1.0) * 0.76;
+      const baseOffset = i / count;
+      const phase = (baseOffset + t) % 1.0;
       const x = from[0] + dx * phase;
       const z = from[2] + dz * phase;
-      const bob = Math.sin(clock.getElapsedTime() * 4 + i * 1.5) * 0.025;
-      el.position.set(x, from[1] + bob, z);
+      // Làm mờ mượt mà khi mũi tên mới xuất hiện ở đầu hành lang và khi sắp ra khỏi hành lang
+      const edgeFade = Math.min(phase / 0.12, (1.0 - phase) / 0.12, 1.0);
+      const scale = Math.max(0.01, edgeFade);
+      el.position.set(x, from[1] + 0.01, z);
+      el.scale.setScalar(scale);
     }
   });
 
@@ -377,7 +379,7 @@ function GuidanceArrow3D({ from, to, probability = 1 }) {
           ref={(el) => { chevronRefs.current[i] = el; }}
           rotation={[0, angle, 0]}
         >
-          {/* Glowing 3D arrow head pointing forward along +Z direction */}
+          {/* Mũi tên 3D phát sáng rõ nét chỉ hướng dọc theo trục +Z */}
           <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0.08]}>
             <coneGeometry args={[0.09, 0.22, 10]} />
             <meshStandardMaterial
@@ -387,7 +389,7 @@ function GuidanceArrow3D({ from, to, probability = 1 }) {
               roughness={0.2}
             />
           </mesh>
-          {/* Arrow stem */}
+          {/* Thân mũi tên */}
           <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -0.06]}>
             <cylinderGeometry args={[0.035, 0.035, 0.14, 8]} />
             <meshStandardMaterial
@@ -414,36 +416,57 @@ const GuidanceArrows3D = React.memo(function GuidanceArrows3D({ corridorModels, 
   const isActive = simulationStatus === 'running' || simulationStatus === 'stopped';
   const decisions = guidanceState?.decisions;
   const blockedEdges = incidentData?.blockedEdges;
+  const lastDirectionsRef = useRef({});
 
   const guidedList = useMemo(() => {
     if (!isActive) return [];
     const decs = decisions || {};
-    if (Object.keys(decs).length === 0) return [];
     const blocked = blockedEdges || [];
+    const now = Date.now();
     const results = [];
 
     corridorModels.forEach(({ corridor, areaA, areaB, startPortal, endPortal }) => {
-      if (blocked.includes(corridor.id)) return;
+      if (blocked.includes(corridor.id)) {
+        delete lastDirectionsRef.current[corridor.id];
+        return;
+      }
 
       const decA = decs[areaA.id];
       const routeA = decA?.routes?.find((r) => r.edge_id === corridor.id) || (decA?.next_edge === corridor.id ? { probability: decA.probability || 1 } : null);
 
-      const decB = decisions[areaB.id];
+      const decB = decs[areaB.id];
       const routeB = decB?.routes?.find((r) => r.edge_id === corridor.id) || (decB?.next_edge === corridor.id ? { probability: decB.probability || 1 } : null);
 
+      let from = null;
+      let to = null;
+      let probability = 1;
+
       if (routeA && (!routeB || (routeA.probability || 1) >= (routeB.probability || 0))) {
-        results.push({
-          corridorId: corridor.id,
-          from: [startPortal.center[0], startPortal.center[1] + FLOOR_TOP_Y + 0.16, startPortal.center[2]],
-          to: [endPortal.center[0], endPortal.center[1] + FLOOR_TOP_Y + 0.16, endPortal.center[2]],
-          probability: routeA.probability || 1,
-        });
+        from = [startPortal.center[0], startPortal.center[1] + FLOOR_TOP_Y + 0.16, startPortal.center[2]];
+        to = [endPortal.center[0], endPortal.center[1] + FLOOR_TOP_Y + 0.16, endPortal.center[2]];
+        probability = routeA.probability || 1;
+        lastDirectionsRef.current[corridor.id] = { from, to, probability, timestamp: now };
       } else if (routeB) {
+        from = [endPortal.center[0], endPortal.center[1] + FLOOR_TOP_Y + 0.16, endPortal.center[2]];
+        to = [startPortal.center[0], startPortal.center[1] + FLOOR_TOP_Y + 0.16, startPortal.center[2]];
+        probability = routeB.probability || 1;
+        lastDirectionsRef.current[corridor.id] = { from, to, probability, timestamp: now };
+      } else {
+        // Giữ hướng chỉ dẫn ổn định trong khoảng đệm 3.5 giây nếu tải hành lang tạm thời về 0 hoặc có biến động nhẹ
+        const cached = lastDirectionsRef.current[corridor.id];
+        if (cached && now - cached.timestamp < 3500) {
+          from = cached.from;
+          to = cached.to;
+          probability = cached.probability;
+        }
+      }
+
+      if (from && to) {
         results.push({
           corridorId: corridor.id,
-          from: [endPortal.center[0], endPortal.center[1] + FLOOR_TOP_Y + 0.16, endPortal.center[2]],
-          to: [startPortal.center[0], startPortal.center[1] + FLOOR_TOP_Y + 0.16, startPortal.center[2]],
-          probability: routeB.probability || 1,
+          from,
+          to,
+          probability,
         });
       }
     });
@@ -466,6 +489,7 @@ const GuidanceArrows3D = React.memo(function GuidanceArrows3D({ corridorModels, 
     </group>
   );
 });
+
 
 const BlockedBarriers3D = React.memo(function BlockedBarriers3D({ corridorModels, incidentData }) {
   const blockedIds = incidentData?.blockedEdges || [];

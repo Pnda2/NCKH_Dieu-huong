@@ -70,7 +70,7 @@ const char* WIFI_SSID     = "DYP05";      // Tên WiFi
 const char* WIFI_PASSWORD = "12344321";  // Mật khẩu WiFi
 
 // Địa chỉ IP của máy tính đang chạy WiEvac backend (Port 1883):
-const char* MQTT_HOST     = "192.168.1.184";
+const char* MQTT_HOST     = "192.168.1.198";
 const uint16_t MQTT_PORT  = 1883;
 
 // Định danh của bảng hiệu này trong hệ thống WiEvac
@@ -263,24 +263,23 @@ void processSignCommand(JsonObject& doc) {
 }
 
 void onMqttMessage(char* topic, byte* payload, unsigned int length) {
-  DynamicJsonDocument doc(2048);
-  DeserializationError err = deserializeJson(doc, payload, length);
-  if (err) {
-    Serial.print("[MQTT] Loi parse JSON: ");
-    Serial.println(err.c_str());
-    return;
-  }
-
   String strTopic = String(topic);
 
-  // 1. Nhận lệnh trực tiếp cho bảng hiệu
+  // 1. Nhận lệnh trực tiếp cho bảng hiệu (chỉ parse JSON cho đúng thiết bị)
   if (strTopic.startsWith("building/guidance/sign/")) {
+    StaticJsonDocument<1024> doc;
+    DeserializationError err = deserializeJson(doc, payload, length);
+    if (err) {
+      Serial.print("[MQTT] Loi parse JSON: ");
+      Serial.println(err.c_str());
+      return;
+    }
     JsonObject obj = doc.as<JsonObject>();
     processSignCommand(obj);
     return;
   }
 
-  // 2. Tín hiệu đồng bộ mô phỏng
+  // 2. Tín hiệu đồng bộ mô phỏng gọn nhẹ (không tốn tài nguyên xử lý)
   if (strTopic == "building/simulation/start" || strTopic == "building/simulation/resume") {
     gState.simRunning = true;
     Serial.println("[WiEvac] Bat dau / Tiep tuc gia lap.");
@@ -292,17 +291,6 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
     gState.mode = MODE_STANDBY;
     gState.command = "STANDBY";
     Serial.println("[WiEvac] Reset gia lap -> Ve che do Standby.");
-  } else if (strTopic == "building/simulation/state") {
-    const char* status = doc["status"] | "idle";
-    if (!strcmp(status, "running")) {
-      gState.simRunning = true;
-    } else if (!strcmp(status, "idle")) {
-      gState.simRunning = false;
-      gState.mode = MODE_STANDBY;
-      gState.command = "STANDBY";
-    } else if (!strcmp(status, "stopped")) {
-      gState.simRunning = false;
-    }
   }
 }
 
@@ -335,15 +323,15 @@ void checkMqttConnection() {
   if (mqttClient.connect(DEVICE_ID)) {
     Serial.println("[MQTT] Ket noi thanh cong!");
 
-    // Lắng nghe lệnh trực tiếp gửi đến bảng hiệu này và wildcard
-    mqttClient.subscribe("building/guidance/sign/#", 1);
+    // Lắng nghe lệnh trực tiếp gửi đích danh đến bảng hiệu này
+    String signTopic = String("building/guidance/sign/") + DEVICE_ID;
+    mqttClient.subscribe(signTopic.c_str(), 1);
 
-    // Lắng nghe trạng thái mô phỏng
+    // Lắng nghe tín hiệu đồng bộ mô phỏng gọn nhẹ
     mqttClient.subscribe("building/simulation/start", 0);
     mqttClient.subscribe("building/simulation/resume", 0);
     mqttClient.subscribe("building/simulation/stop", 0);
     mqttClient.subscribe("building/simulation/reset", 0);
-    mqttClient.subscribe("building/simulation/state", 0);
 
     // Gửi báo cáo thông số thiết bị
     publishCapabilities();
@@ -357,11 +345,11 @@ void checkMqttConnection() {
 // 8. CÁC HÀM VẼ ĐỒ HỌA TRÊN MA TRẬN P10 (32x16 RGB)
 // ========================================================================================
 
-// Vẽ mũi tên sang Trái (chevrons chảy động)
+// Vẽ mũi tên sang Trái (chevrons chảy động liên tục không ngắt quãng)
 void drawStreamingArrowLeft(uint16_t color, uint8_t offset) {
-  for (int c = 0; c < 3; c++) {
-    int baseX = 24 - c * 9 - offset;
-    if (baseX < -4) baseX += 27;
+  int shift = offset % 10;
+  for (int c = 0; c < 5; c++) {
+    int baseX = 32 - c * 10 - shift;
 
     for (int dy = 0; dy <= 5; dy++) {
       int px = baseX + dy;
@@ -375,11 +363,11 @@ void drawStreamingArrowLeft(uint16_t color, uint8_t offset) {
   }
 }
 
-// Vẽ mũi tên sang Phải (chevrons chảy động)
+// Vẽ mũi tên sang Phải (chevrons chảy động liên tục không ngắt quãng)
 void drawStreamingArrowRight(uint16_t color, uint8_t offset) {
-  for (int c = 0; c < 3; c++) {
-    int baseX = 6 + c * 9 + offset;
-    if (baseX > 35) baseX -= 27;
+  int shift = offset % 10;
+  for (int c = 0; c < 5; c++) {
+    int baseX = -6 + c * 10 + shift;
 
     for (int dy = 0; dy <= 5; dy++) {
       int px = baseX - dy;
@@ -653,14 +641,17 @@ void loop() {
     }
   }
 
-  // 3. Cập nhật hoạt ảnh và hiển thị ở 20 FPS (mỗi 50ms)
+  // 3. Cập nhật hoạt ảnh và hiển thị ở 20 FPS (mỗi 50ms) đồng bộ thời gian thực
   if (now - lastAnimTick >= 50) {
-    lastAnimTick = now;
-    animStep++;
+    uint8_t stepsPassed = (now - lastAnimTick) / 50;
+    lastAnimTick += stepsPassed * 50;
+    animStep += stepsPassed;
 
     // Nhấp nháy ở chu kỳ 500ms
-    if (animStep % 10 == 0) {
-      blinkToggle = !blinkToggle;
+    if ((animStep / 10) % 2 == 0) {
+      blinkToggle = true;
+    } else {
+      blinkToggle = false;
     }
 
     dma_display->clearScreen();

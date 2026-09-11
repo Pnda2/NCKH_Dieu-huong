@@ -65,7 +65,16 @@ function App() {
 
   const pendingSimStateRef = useRef(null);
   const pendingGuidanceRef = useRef(null);
+  const pendingOccupancyRef = useRef(null);
+  const pendingLogsRef = useRef([]);
+  const pendingEdgeMetricsRef = useRef(null);
   const rafIdRef = useRef(null);
+
+  const scheduleFlush = () => {
+    if (!rafIdRef.current) {
+      rafIdRef.current = requestAnimationFrame(flushTelemetry);
+    }
+  };
 
   const flushTelemetry = () => {
     rafIdRef.current = null;
@@ -76,7 +85,9 @@ function App() {
         ...prev,
         ...data,
         status: data.status || prev.status || 'idle',
+        ...(pendingEdgeMetricsRef.current ? { edgeMetrics: pendingEdgeMetricsRef.current } : {}),
       }));
+      if (pendingEdgeMetricsRef.current) pendingEdgeMetricsRef.current = null;
       if (data?.status === 'running') {
         setMode('view');
         setEditTool('select');
@@ -85,6 +96,23 @@ function App() {
         setOccupancyData(data.edgeOccupancy || {});
         setGuidanceState({ decisions: {}, devices: [] });
       }
+    } else if (pendingEdgeMetricsRef.current) {
+      const metrics = pendingEdgeMetricsRef.current;
+      pendingEdgeMetricsRef.current = null;
+      setSimulationState(prev => ({
+        ...prev,
+        edgeMetrics: metrics,
+      }));
+    }
+    if (pendingOccupancyRef.current) {
+      const occ = pendingOccupancyRef.current;
+      pendingOccupancyRef.current = null;
+      setOccupancyData(prev => ({ ...prev, ...occ }));
+    }
+    if (pendingLogsRef.current.length > 0) {
+      const newLogs = [...pendingLogsRef.current];
+      pendingLogsRef.current = [];
+      setLogs(prev => [...newLogs, ...prev].slice(0, 50));
     }
     if (pendingGuidanceRef.current) {
       const gData = pendingGuidanceRef.current;
@@ -117,7 +145,10 @@ function App() {
     const newSocket = io(SERVER_URL);
     newSocket.on('connect', () => setIsConnected(true));
     newSocket.on('disconnect', () => setIsConnected(false));
-    newSocket.on('occupancy_update', (data) => setOccupancyData(prev => ({ ...prev, ...data })));
+    newSocket.on('occupancy_update', (data) => {
+      pendingOccupancyRef.current = { ...(pendingOccupancyRef.current || {}), ...data };
+      scheduleFlush();
+    });
     newSocket.on('incident_update', (data) => {
       setIncidentData(prev => {
         const nextState = {
@@ -136,28 +167,26 @@ function App() {
       });
     });
     newSocket.on('system_log', (data) => {
-      setLogs(prev => {
-        const newLogs = [...data.events, ...prev];
-        return newLogs.slice(0, 50); // Keep last 50 events
-      });
+      if (data?.events?.length) {
+        pendingLogsRef.current = [...(data.events || []), ...pendingLogsRef.current];
+        scheduleFlush();
+      }
     });
     newSocket.on('simulation_state', (data) => {
       pendingSimStateRef.current = data;
-      if (!rafIdRef.current) rafIdRef.current = requestAnimationFrame(flushTelemetry);
+      scheduleFlush();
     });
     newSocket.on('occupancy_adjust_ack', (data) => {
       if (data?.success === false) notify(data.error || 'Yêu cầu điều chỉnh tải bị từ chối.', 'danger');
     });
     newSocket.on('guidance_state', (data) => {
       pendingGuidanceRef.current = data;
-      if (!rafIdRef.current) rafIdRef.current = requestAnimationFrame(flushTelemetry);
+      scheduleFlush();
     });
     newSocket.on('occupancy_state', (data) => {
       if (data?.edgeMetrics) {
-        setSimulationState(prev => ({
-          ...prev,
-          edgeMetrics: data.edgeMetrics,
-        }));
+        pendingEdgeMetricsRef.current = data.edgeMetrics;
+        scheduleFlush();
       }
     });
 

@@ -412,7 +412,7 @@ function GuidanceArrow3D({ from, to, probability = 1 }) {
   );
 }
 
-const GuidanceArrows3D = React.memo(function GuidanceArrows3D({ corridorModels, guidanceState, incidentData, simulationStatus }) {
+const GuidanceArrows3D = React.memo(function GuidanceArrows3D({ corridorModels, guidanceState, incidentData, simulationStatus, metrics, occupancyData, movementByCorridor }) {
   const isActive = simulationStatus === 'running' || simulationStatus === 'stopped';
   const decisions = guidanceState?.decisions;
   const blockedEdges = incidentData?.blockedEdges;
@@ -427,6 +427,32 @@ const GuidanceArrows3D = React.memo(function GuidanceArrows3D({ corridorModels, 
 
     corridorModels.forEach(({ corridor, areaA, areaB, startPortal, endPortal }) => {
       if (blocked.includes(corridor.id)) {
+        delete lastDirectionsRef.current[corridor.id];
+        return;
+      }
+
+      // Check if this corridor currently has people or active movement flowing through it
+      const peopleCount = Number(metrics?.[corridor.id]?.currentPeople ?? (occupancyData?.[corridor.id] || 0) * (corridor.capacityPeople || 10));
+      const occ = Number(occupancyData?.[corridor.id] ?? metrics?.[corridor.id]?.occupancyRatio ?? 0);
+      const corridorMovements = movementByCorridor?.[corridor.id];
+      const hasDirectMovement = Boolean(corridorMovements && Object.values(corridorMovements).some((v) => Number(v) > 0.005));
+
+      let hasIncomingFlow = false;
+      if (movementByCorridor) {
+        const aId = corridor.areaA_id;
+        const bId = corridor.areaB_id;
+        for (const [sourceId, dirs] of Object.entries(movementByCorridor)) {
+          if (sourceId !== corridor.id && dirs) {
+            if ((dirs[aId] && Number(dirs[aId]) > 0.01) || (dirs[bId] && Number(dirs[bId]) > 0.01)) {
+              hasIncomingFlow = true;
+              break;
+            }
+          }
+        }
+      }
+
+      const isOccupied = peopleCount >= 0.5 || occ > 0.01 || hasDirectMovement || hasIncomingFlow;
+      if (!isOccupied) {
         delete lastDirectionsRef.current[corridor.id];
         return;
       }
@@ -452,9 +478,8 @@ const GuidanceArrows3D = React.memo(function GuidanceArrows3D({ corridorModels, 
         probability = routeB.probability || 1;
         lastDirectionsRef.current[corridor.id] = { from, to, probability, timestamp: now };
       } else {
-        // Giữ hướng chỉ dẫn ổn định trong khoảng đệm 3.5 giây nếu tải hành lang tạm thời về 0 hoặc có biến động nhẹ
         const cached = lastDirectionsRef.current[corridor.id];
-        if (cached && now - cached.timestamp < 3500) {
+        if (cached && now - cached.timestamp < 1500) {
           from = cached.from;
           to = cached.to;
           probability = cached.probability;
@@ -472,7 +497,7 @@ const GuidanceArrows3D = React.memo(function GuidanceArrows3D({ corridorModels, 
     });
 
     return results;
-  }, [corridorModels, decisions, blockedEdges, isActive]);
+  }, [corridorModels, decisions, blockedEdges, isActive, metrics, occupancyData, movementByCorridor]);
 
   if (!guidedList.length) return null;
 
@@ -659,7 +684,7 @@ function SceneContents({ areas, corridors, stairwells, activeFloor, scene, selec
     {corridorModels.map((model) => <CorridorBlock key={model.corridor.id} corridor={model.corridor} areaA={model.areaA} areaB={model.areaB} scene={scene} activeFloor={activeFloor} floorView={floorView} floors={floors} metric={edgeMetrics?.[model.corridor.id]} blocked={incidentData?.blockedEdges?.includes(model.corridor.id)} showOperational={simulationStatus === 'running' || simulationStatus === 'stopped'} selected={selectedItem?.type === 'corridor' && selectedItem.data.id === model.corridor.id} onSelect={onSelectItem} portalOptions={portalOptions} startPortal={portalRegistry.byEdgeEndpoint[`${model.corridor.id}:start`] || model.startPortal} endPortal={portalRegistry.byEdgeEndpoint[`${model.corridor.id}:end`] || model.endPortal} precomputedGeometry={model.geometry} />)}
     {floorView === 'overview' && wells.map((well) => <StairwellCore key={well.id} well={well} scene={settings} activeFloor={activeFloor} floors={floors} portalOptions={portalOptions} portalDescriptors={portalRegistry.byArea} />)}
     <PeopleDots corridorModels={corridorModels} metrics={edgeMetrics} occupancyData={occupancyData} simulationStatus={simulationStatus} movementByCorridor={movementByCorridor} guidanceState={guidanceState} incidentData={incidentData} />
-    <GuidanceArrows3D corridorModels={corridorModels} guidanceState={guidanceState} incidentData={incidentData} simulationStatus={simulationStatus} />
+    <GuidanceArrows3D corridorModels={corridorModels} guidanceState={guidanceState} incidentData={incidentData} simulationStatus={simulationStatus} metrics={edgeMetrics} occupancyData={occupancyData} movementByCorridor={movementByCorridor} />
     <BlockedBarriers3D corridorModels={corridorModels} incidentData={incidentData} />
     <Signboards3D areas={visibleAreas} devices={devices} guidanceState={guidanceState} scene={scene} activeFloor={activeFloor} floorView={floorView} floors={floors} />
     <CsiSensorNetwork3D corridorModels={corridorModels} simulationStatus={simulationStatus} selectedItem={selectedItem} />

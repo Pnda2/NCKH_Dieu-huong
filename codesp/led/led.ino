@@ -349,7 +349,7 @@ void checkMqttConnection() {
 void drawStreamingArrowLeft(uint16_t color, uint8_t offset) {
   int shift = offset % 10;
   for (int c = 0; c < 5; c++) {
-    int baseX = 32 - c * 10 - shift;
+    int baseX = 37 - c * 10 - shift;
 
     for (int dy = 0; dy <= 5; dy++) {
       int px = baseX + dy;

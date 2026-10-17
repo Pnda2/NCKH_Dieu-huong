@@ -102,7 +102,7 @@ export default function CorridorEdgeForm({
   };
 
   return (
-    <div className="rounded border border-slate-800 bg-slate-900/80 p-3 space-y-3.5 text-slate-200">
+    <div className="rounded-xl border border-slate-800/80 bg-slate-900/60 p-3.5 space-y-3.5 text-slate-200 shadow-sm backdrop-blur-sm">
       {/* ── 1. Header (Tổng quan & Thao tác) ── */}
       <div className="pb-2.5 border-b border-slate-800">
         <div className="flex items-start justify-between gap-2">

@@ -691,9 +691,15 @@ function SceneContents({ areas, corridors, stairwells, activeFloor, scene, selec
     return { centerX: (minX + maxX) / 2, centerZ: (minZ + maxZ) / 2, width: Math.max(7, maxX - minX + 4), depth: Math.max(7, maxZ - minZ + 4) };
   }, [visibleAreas, scene, activeFloor, floorView, floors]);
   return <>
-    <color attach="background" args={['#dbeaf0']} /><fog attach="fog" args={['#dbeaf0', 40, Math.max(140, gridSize * 4)]} /><hemisphereLight args={['#ffffff', '#88a5b7', 1.12]} /><ambientLight intensity={.44} /><directionalLight position={[10, 18, 8]} intensity={1.28} />
-    <RoundedBox args={[footprint.width, .1, footprint.depth]} radius={.18} smoothness={2} position={[footprint.centerX, activeY - .1, footprint.centerZ]}><meshStandardMaterial color="#cbdce1" roughness={.96} /></RoundedBox>
-    <Grid args={[gridSize, gridSize]} position={[0, activeY - .02, 0]} cellSize={settings.gridSizeMeters} cellThickness={.14} sectionSize={settings.gridSizeMeters * 5} sectionThickness={.32} cellColor="#c6d3d9" sectionColor="#a0bbca" fadeDistance={gridSize * .64} />
+    <color attach="background" args={['#0b0f19']} />
+    <fog attach="fog" args={['#0b0f19', 35, Math.max(140, gridSize * 4)]} />
+    <hemisphereLight args={['#94a3b8', '#0b0f19', 0.9]} />
+    <ambientLight intensity={0.4} />
+    <directionalLight position={[10, 20, 8]} intensity={1.2} />
+    <RoundedBox args={[footprint.width, .1, footprint.depth]} radius={.18} smoothness={2} position={[footprint.centerX, activeY - .1, footprint.centerZ]}>
+      <meshStandardMaterial color="#1e293b" roughness={0.88} metalness={0.25} />
+    </RoundedBox>
+    <Grid args={[gridSize, gridSize]} position={[0, activeY - .02, 0]} cellSize={settings.gridSizeMeters} cellThickness={0.12} sectionSize={settings.gridSizeMeters * 5} sectionThickness={0.3} cellColor="#1e293b" sectionColor="#0284c7" fadeDistance={gridSize * 0.68} />
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, activeY - .04, 0]} onClick={(event) => { if (editable && editTool === 'addArea') { const next = planPosition(event.point.x, event.point.z, scene, snap); onAddArea(next.x, next.y, addVisualKind); } else if (editTool !== 'addCorridor') onSelectItem(null); }}><planeGeometry args={[gridSize, gridSize]} /><meshBasicMaterial transparent opacity={0} depthWrite={false} /></mesh>
     {corridorModels.map((model) => <CorridorBlock key={model.corridor.id} corridor={model.corridor} areaA={model.areaA} areaB={model.areaB} scene={scene} activeFloor={activeFloor} floorView={floorView} floors={floors} metric={edgeMetrics?.[model.corridor.id]} blocked={incidentData?.blockedEdges?.includes(model.corridor.id)} showOperational={simulationStatus === 'running' || simulationStatus === 'stopped'} selected={selectedItem?.type === 'corridor' && selectedItem.data.id === model.corridor.id} onSelect={onSelectItem} portalOptions={portalOptions} startPortal={portalRegistry.byEdgeEndpoint[`${model.corridor.id}:start`] || model.startPortal} endPortal={portalRegistry.byEdgeEndpoint[`${model.corridor.id}:end`] || model.endPortal} precomputedGeometry={model.geometry} />)}
     {floorView === 'overview' && wells.map((well) => <StairwellCore key={well.id} well={well} scene={settings} activeFloor={activeFloor} floors={floors} portalOptions={portalOptions} portalDescriptors={portalRegistry.byArea} />)}

@@ -109,7 +109,7 @@ export default function AreaForm({
   };
 
   return (
-    <div className="bg-slate-900/90 rounded border border-slate-700/80 p-3 space-y-3 text-slate-200">
+    <div className="bg-slate-900/60 rounded-xl border border-slate-800/80 p-3.5 space-y-3.5 text-slate-200 shadow-sm backdrop-blur-sm">
       {/* Header */}
       <div className="flex items-start justify-between gap-2 pb-2 border-b border-slate-800">
         <div className="min-w-0 flex-1">

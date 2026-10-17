@@ -647,25 +647,25 @@ function App() {
       )}
 
       {/* ─── Header ─── */}
-      <header className="bg-slate-950 border-b border-slate-800 px-4 flex justify-between items-center flex-shrink-0 h-[52px]">
+      <header className="bg-slate-950/95 backdrop-blur border-b border-slate-800/90 px-4 flex justify-between items-center flex-shrink-0 h-[54px] z-20">
         <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded bg-blue-700 border border-blue-500/40 flex items-center justify-center text-white font-bold text-xs tracking-wider">
+          <div className="w-8 h-8 rounded-lg bg-cyan-950/70 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-bold text-sm tracking-widest shadow-sm shadow-cyan-950">
             W
           </div>
           <div>
             <div className="text-white font-bold text-sm tracking-wide flex items-center gap-2 leading-none">
-              <span>WiEvac</span>
-              <span className="text-[10px] font-mono text-slate-400 border border-slate-700 px-1 py-0.5 rounded-sm bg-slate-900">MONITOR</span>
+              <span className="bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent">WiEvac</span>
+              <span className="text-[9px] font-mono font-bold tracking-wider text-cyan-400 border border-cyan-500/30 px-1.5 py-0.5 rounded-full bg-cyan-950/40">OPS CENTER</span>
             </div>
-            <div className="text-[10px] font-mono text-slate-400 mt-1 leading-none">WiFi CSI Emergency Coordination</div>
+            <div className="text-[10px] font-mono text-slate-400 mt-1 leading-none tracking-tight">WiFi CSI Emergency Coordination</div>
           </div>
         </div>
 
         {/* Mode Segmented Control */}
-        <div className="flex items-center rounded border border-slate-800 bg-slate-900 p-0.5 text-xs">
+        <div className="flex items-center rounded-lg border border-slate-800/80 bg-slate-900/90 p-0.5 text-xs shadow-inner">
           <button
             onClick={() => { setMode('view'); setEditTool('select'); setSelectedItem(null); }}
-            className={`px-3 py-1 rounded-sm font-medium transition-colors ${mode === 'view' ? 'bg-blue-700 text-white font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200'
+            className={`px-3.5 py-1.5 rounded-md font-semibold text-xs transition-all duration-200 ${mode === 'view' ? 'bg-slate-800 text-cyan-400 border border-cyan-500/30 shadow-sm' : 'text-slate-400 hover:text-slate-200'
               }`}
           >
             Giám sát
@@ -678,7 +678,7 @@ function App() {
               }
               setMode('edit');
             }}
-            className={`px-3 py-1 rounded-sm font-medium transition-colors ${mode === 'edit' ? 'bg-blue-700 text-white font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200'
+            className={`px-3.5 py-1.5 rounded-md font-semibold text-xs transition-all duration-200 ${mode === 'edit' ? 'bg-slate-800 text-cyan-400 border border-cyan-500/30 shadow-sm' : 'text-slate-400 hover:text-slate-200'
               }`}
           >
             Thiết kế
@@ -686,13 +686,13 @@ function App() {
         </div>
 
         {/* Viewport 2D / 3D Segmented Control */}
-        <div className="flex items-center rounded border border-slate-800 bg-slate-900 p-0.5 text-xs">
+        <div className="flex items-center rounded-lg border border-slate-800/80 bg-slate-900/90 p-0.5 text-xs shadow-inner">
           {['2d', '3d'].map(view => (
             <button
               key={view}
               type="button"
               onClick={() => setViewportMode(view)}
-              className={`px-2.5 py-1 rounded-sm font-medium transition-colors ${viewportMode === view ? 'bg-slate-700 text-white font-semibold' : 'text-slate-400 hover:text-slate-200'
+              className={`px-3 py-1.5 rounded-md font-semibold text-xs transition-all duration-200 ${viewportMode === view ? 'bg-slate-800 text-cyan-400 border border-cyan-500/30 shadow-sm' : 'text-slate-400 hover:text-slate-200'
                 }`}
             >
               {view === '2d' ? '2D Sơ đồ' : '3D Khối'}
@@ -701,11 +701,11 @@ function App() {
         </div>
 
         {/* Simulation Actions */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 bg-slate-900/80 border border-slate-800/80 p-1 rounded-lg">
           <button
             onClick={handleStartSimulation}
             disabled={simulationState.status === 'running'}
-            className="px-3 py-1.5 rounded font-medium text-xs bg-blue-700 hover:bg-blue-600 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed text-white transition-colors flex items-center gap-1.5 shadow-sm"
+            className="px-3.5 py-1.5 rounded-md font-medium text-xs bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-all flex items-center gap-1.5 shadow-sm shadow-cyan-900/30"
           >
             <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3" /></svg>
             <span>{simulationState.status === 'stopped' ? 'Tiếp tục' : 'Chạy mô phỏng'}</span>
@@ -713,7 +713,7 @@ function App() {
           <button
             onClick={handleStopSimulation}
             disabled={simulationState.status !== 'running'}
-            className="px-3 py-1.5 rounded font-medium text-xs bg-slate-900 border border-red-800/80 hover:bg-red-950/60 disabled:border-slate-800 disabled:bg-slate-900 disabled:text-slate-600 disabled:cursor-not-allowed text-red-300 transition-colors flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-md font-medium text-xs bg-rose-500/10 border border-rose-500/30 hover:bg-rose-500/20 disabled:border-slate-800 disabled:bg-slate-900/40 disabled:text-slate-600 disabled:cursor-not-allowed text-rose-300 transition-all flex items-center gap-1.5"
           >
             <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="1" /></svg>
             <span>Dừng</span>
@@ -721,7 +721,7 @@ function App() {
           <button
             onClick={handleResetSimulation}
             disabled={simulationState.status === 'running'}
-            className="px-3 py-1.5 rounded font-medium text-xs bg-slate-900 border border-slate-700 hover:bg-slate-800 disabled:border-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed text-slate-300 transition-colors flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-md font-medium text-xs bg-slate-800/80 border border-slate-700/60 hover:bg-slate-700 disabled:border-slate-800/60 disabled:text-slate-600 disabled:cursor-not-allowed text-slate-300 transition-all flex items-center gap-1.5"
           >
             <svg className="w-3 h-3 stroke-current fill-none stroke-2" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
             <span>Reset</span>
@@ -729,8 +729,11 @@ function App() {
         </div>
 
         {/* Live Telemetry Status */}
-        <div className="flex items-center gap-2 pl-3 border-l border-slate-800 text-xs font-mono">
-          <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500' : 'bg-red-500'}`} />
+        <div className="flex items-center gap-2.5 pl-3 border-l border-slate-800 text-xs font-mono">
+          <span className="relative flex h-2 w-2">
+            {isConnected && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />}
+            <span className={`relative inline-flex rounded-full h-2 w-2 ${isConnected ? 'bg-emerald-500' : 'bg-red-500'}`} />
+          </span>
           <span className={`font-semibold tracking-wider ${isConnected ? 'text-emerald-400' : 'text-red-400'}`}>
             {isConnected ? 'LIVE' : 'OFFLINE'}
           </span>
@@ -739,30 +742,30 @@ function App() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* ─── Canvas Area ─── */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-slate-100">
+        <div className="flex-1 flex flex-col overflow-hidden bg-slate-950">
 
           {/* Floor Toolbar */}
-          <div className="bg-slate-900 border-b border-slate-800 px-3 py-1.5 flex items-center justify-between flex-shrink-0">
-            <div className="flex items-center gap-1.5">
+          <div className="bg-slate-950/90 border-b border-slate-800/80 px-3.5 py-2 flex items-center justify-between flex-shrink-0 z-10">
+            <div className="flex items-center gap-2">
               <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider font-semibold mr-1">TẦNG:</span>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 {floors.map(f => (
                   <div key={f} className="relative flex items-center group">
                     <button
                       onClick={() => { setActiveFloor(f); setSelectedItem(null); }}
-                      className={`px-2.5 py-1 text-xs rounded-sm font-medium transition-colors border ${activeFloor === f
-                        ? 'bg-blue-700 text-white font-semibold border-blue-600'
-                        : 'bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 border-slate-700'
+                      className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-all border ${activeFloor === f
+                        ? 'bg-slate-800 text-cyan-300 border-cyan-500/40 shadow-sm shadow-cyan-950'
+                        : 'bg-slate-900/60 text-slate-400 hover:text-white hover:bg-slate-800/60 border-slate-800/80'
                         }`}
                     >
                       Tầng {f}
                     </button>
                     {mode === 'edit' && (
                       <div className="absolute left-full h-full flex items-center pl-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto z-10">
-                        <div className="flex items-center gap-0.5 bg-slate-900 px-1 py-0.5 rounded border border-slate-700 shadow-md">
+                        <div className="flex items-center gap-1 bg-slate-900/95 backdrop-blur px-1.5 py-0.5 rounded-md border border-slate-700/80 shadow-lg">
                           <button
                             onClick={() => handleDuplicateFloor(f)}
-                            className="px-1 py-0.5 text-blue-400 hover:text-blue-300 text-[11px] font-mono"
+                            className="px-1 py-0.5 text-cyan-400 hover:text-cyan-300 text-[11px] font-mono"
                             title="Sao chép tầng này"
                           >
                             COPY
@@ -784,7 +787,7 @@ function App() {
                 {mode === 'edit' && (
                   <button
                     onClick={handleAddFloor}
-                    className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 rounded-sm text-xs font-bold transition-colors"
+                    className="px-2.5 py-1.5 bg-slate-900/80 hover:bg-slate-800 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-mono font-bold transition-all shadow-sm"
                     title="Thêm tầng mới"
                   >
                     + TẦNG
@@ -795,48 +798,48 @@ function App() {
 
             {mode === 'edit' ? (
               <div className="flex items-center gap-2">
-                <div className="flex gap-0.5 bg-slate-950 p-0.5 rounded border border-slate-800 text-xs">
+                <div className="flex gap-1 bg-slate-900/90 p-0.5 rounded-lg border border-slate-800 text-xs">
                   {[
                     { id: 'select', label: 'Chọn' },
                     { id: 'addArea', label: '+ Khu vực' },
                     { id: 'addCorridor', label: '+ Hành lang' },
                   ].map(t => (
                     <button key={t.id} onClick={() => setEditTool(t.id)}
-                      className={`px-2.5 py-0.5 rounded-sm font-medium transition-colors ${editTool === t.id ? 'bg-slate-700 text-white font-semibold' : 'text-slate-400 hover:text-slate-200'
+                      className={`px-3 py-1 rounded-md font-medium transition-all ${editTool === t.id ? 'bg-slate-800 text-cyan-400 border border-cyan-500/30 font-semibold' : 'text-slate-400 hover:text-slate-200'
                         }`}
                     >{t.label}</button>
                   ))}
                 </div>
-                <div className="w-px h-4 bg-slate-700"></div>
-                <label className="px-2.5 py-1 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-sm cursor-pointer font-medium transition-colors flex items-center gap-1">
+                <div className="w-px h-4 bg-slate-800"></div>
+                <label className="px-2.5 py-1.5 text-xs bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-slate-700/80 rounded-lg cursor-pointer font-medium transition-all flex items-center gap-1 shadow-sm">
                   <span>Ảnh nền</span>
                   <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                 </label>
                 {normalizedBgImage && (
-                  <div className="flex items-center gap-2 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                  <div className="flex items-center gap-2 bg-slate-900/90 px-2.5 py-1 rounded-lg border border-slate-800">
                     <span className="text-[10px] font-mono text-slate-400">TỶ LỆ:</span>
                     <input
                       type="range" min="0.1" max="3" step="0.05"
                       value={normalizedBgImage.scale || 1}
                       onChange={(e) => setFloorImages(prev => ({ ...prev, [activeFloor]: { ...normalizedBgImage, scale: Number(e.target.value) } }))}
-                      className="w-14 accent-blue-600"
+                      className="w-14 accent-cyan-500"
                     />
                     <span className="text-[10px] font-mono text-slate-400 ml-1">MỜ:</span>
                     <input
                       type="range" min="0.1" max="1" step="0.1"
                       value={normalizedBgImage.opacity || 0.5}
                       onChange={(e) => setFloorImages(prev => ({ ...prev, [activeFloor]: { ...normalizedBgImage, opacity: Number(e.target.value) } }))}
-                      className="w-14 accent-blue-600"
+                      className="w-14 accent-cyan-500"
                     />
                     <button
                       onClick={() => setFloorImages(prev => { const n = { ...prev }; delete n[activeFloor]; return n; })}
-                      className="ml-1 text-[11px] text-red-400 hover:text-red-300 font-bold"
+                      className="ml-1 text-[11px] text-rose-400 hover:text-rose-300 font-bold"
                       title="Xóa ảnh nền"
                     >✕</button>
                   </div>
                 )}
                 <button onClick={handleSaveMap}
-                  className="px-3 py-1 text-xs bg-blue-700 hover:bg-blue-600 text-white rounded-sm font-semibold transition-colors flex items-center gap-1 shadow-sm"
+                  className="px-3.5 py-1.5 text-xs bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-semibold transition-all flex items-center gap-1.5 shadow-sm shadow-cyan-900/40"
                 >
                   <svg className="w-3 h-3 stroke-current fill-none stroke-2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
                   <span>Lưu sơ đồ</span>
@@ -844,12 +847,12 @@ function App() {
               </div>
             ) : (
               <div className="flex items-center gap-3 text-xs font-mono">
-                <span className="text-slate-400">
+                <span className="text-slate-400 bg-slate-900/80 px-2 py-1 rounded-md border border-slate-800">
                   {currentFloorAreas.length} KV · {currentFloorCorridors.length} HL
                 </span>
                 {criticalCount > 0 && (
-                  <span className="text-red-400 font-semibold flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
+                  <span className="text-rose-400 font-semibold flex items-center gap-1.5 bg-rose-500/10 border border-rose-500/20 px-2.5 py-1 rounded-md">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
                     <span>{criticalCount} HL KÉM THÔNG THOÁNG (≥80%)</span>
                   </span>
                 )}
@@ -937,10 +940,10 @@ function App() {
         </div>
 
         {/* ─── Right Sidebar (Control Console) ─── */}
-        <div className="w-80 bg-slate-900 border-l border-slate-800 flex flex-col overflow-hidden flex-shrink-0">
+        <div className="w-80 bg-slate-950/80 backdrop-blur-md border-l border-slate-800/80 flex flex-col overflow-hidden flex-shrink-0">
           {mode === 'edit' ? (
             <div className="flex-1 overflow-y-auto p-3.5 space-y-3.5">
-              <div className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">Cấu hình Đối tượng</div>
+              <div className="text-slate-400 text-xs font-bold uppercase tracking-wider">Cấu hình Đối tượng</div>
 
               {selectedItem?.type === 'area' && (
                 <>
@@ -981,11 +984,11 @@ function App() {
                 />
               )}
               {!selectedItem && (
-                <div className="bg-slate-800/60 rounded border border-slate-700/80 p-3.5 text-xs">
+                <div className="bg-slate-900/60 rounded-xl border border-slate-800/80 p-3.5 text-xs shadow-sm">
                   <div className="text-white font-semibold mb-2">Cấu hình Đồ thị Tòa nhà</div>
                   <div className="space-y-2 text-slate-400 leading-relaxed">
                     <div className="flex items-start gap-2">
-                      <span className="text-blue-400 font-mono font-bold">•</span>
+                      <span className="text-cyan-400 font-mono font-bold">•</span>
                       <span><strong>Khu vực:</strong> Chọn công cụ "Khu vực" rồi click lên bản đồ để tạo node</span>
                     </div>
                     <div className="flex items-start gap-2">
@@ -1001,23 +1004,23 @@ function App() {
               )}
 
               <div className="border-t border-slate-800 pt-3">
-                <div className="text-slate-400 text-[11px] font-semibold uppercase tracking-wider mb-2">Thống kê đồ thị</div>
+                <div className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">Thống kê đồ thị</div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="bg-slate-800/70 border border-slate-700/60 rounded p-2">
-                    <div className="text-slate-400 text-[10px] uppercase font-mono">Khu vực</div>
-                    <div className="text-lg font-bold text-white font-mono mt-0.5">{areas.length}</div>
+                  <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-2.5 shadow-sm">
+                    <div className="text-slate-400 text-xs uppercase font-mono tracking-wider">Khu vực</div>
+                    <div className="text-2xl font-bold text-white font-mono mt-1 tabular-nums">{areas.length}</div>
                   </div>
-                  <div className="bg-slate-800/70 border border-slate-700/60 rounded p-2">
-                    <div className="text-slate-400 text-[10px] uppercase font-mono">Hành lang</div>
-                    <div className="text-lg font-bold text-white font-mono mt-0.5">{corridors.length}</div>
+                  <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-2.5 shadow-sm">
+                    <div className="text-slate-400 text-xs uppercase font-mono tracking-wider">Hành lang</div>
+                    <div className="text-2xl font-bold text-white font-mono mt-1 tabular-nums">{corridors.length}</div>
                   </div>
-                  <div className="bg-slate-800/70 border border-slate-700/60 rounded p-2">
-                    <div className="text-slate-400 text-[10px] uppercase font-mono">Số tầng</div>
-                    <div className="text-lg font-bold text-white font-mono mt-0.5">{floors.length}</div>
+                  <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-2.5 shadow-sm">
+                    <div className="text-slate-400 text-xs uppercase font-mono tracking-wider">Số tầng</div>
+                    <div className="text-2xl font-bold text-white font-mono mt-1 tabular-nums">{floors.length}</div>
                   </div>
-                  <div className="bg-slate-800/70 border border-slate-700/60 rounded p-2">
-                    <div className="text-slate-400 text-[10px] uppercase font-mono">Lối thoát</div>
-                    <div className="text-lg font-bold text-emerald-400 font-mono mt-0.5">{areas.filter(a => a.type === 'exit').length}</div>
+                  <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-2.5 shadow-sm">
+                    <div className="text-slate-400 text-xs uppercase font-mono tracking-wider">Lối thoát</div>
+                    <div className="text-2xl font-bold text-emerald-400 font-mono mt-1 tabular-nums">{areas.filter(a => a.type === 'exit').length}</div>
                   </div>
                 </div>
               </div>
@@ -1025,46 +1028,46 @@ function App() {
           ) : (
             <div className="flex-1 overflow-y-auto">
               {/* Operational Status */}
-              <div className={`p-3 border-b border-slate-800 ${simulationState.status === 'trapped' ? 'bg-red-950/40' : 'bg-slate-900'}`}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">Trạng thái hệ thống</span>
-                  <span className={`text-[11px] font-mono font-semibold px-2 py-0.5 rounded ${simulationState.status === 'running' ? 'bg-blue-900/60 text-blue-300 border border-blue-700/60' :
-                    simulationState.status === 'completed' ? 'bg-emerald-900/60 text-emerald-300 border border-emerald-700/60' :
-                      simulationState.status === 'trapped' ? 'bg-red-900/60 text-red-300 border border-red-700/60' :
-                        'bg-slate-800 text-slate-400 border border-slate-700'
+              <div className={`p-3.5 border-b border-slate-800/80 ${simulationState.status === 'trapped' ? 'bg-rose-950/20' : 'bg-slate-900/30'}`}>
+                <div className="flex items-center justify-between mb-2.5">
+                  <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Trạng thái hệ thống</span>
+                  <span className={`text-xs font-mono font-semibold px-2.5 py-1 rounded-full border ${simulationState.status === 'running' ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30' :
+                    simulationState.status === 'completed' ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' :
+                      simulationState.status === 'trapped' ? 'bg-rose-500/10 text-rose-300 border-rose-500/30' :
+                        'bg-slate-800/60 text-slate-400 border-slate-700/60'
                     }`}>
-                    {simulationState.status === 'running' && <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse mr-1.5" />}
+                    {simulationState.status === 'running' && <span className="inline-block w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse mr-1.5" />}
                     {simulationStatusLabel}
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-1.5 text-xs font-mono">
-                  <div className="bg-slate-800/80 border border-slate-700/60 rounded p-2">
-                    <div className="text-slate-400 text-[10px]">THỜI GIAN</div>
-                    <div className="text-sm font-bold text-white mt-0.5">{formatDuration(simulationState.elapsedSeconds)}</div>
+                <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                  <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-2.5 shadow-sm">
+                    <div className="text-slate-400 text-xs uppercase tracking-wider">THỜI GIAN</div>
+                    <div className="text-2xl font-bold text-white mt-1 tabular-nums">{formatDuration(simulationState.elapsedSeconds)}</div>
                   </div>
-                  <div className="bg-slate-800/80 border border-slate-700/60 rounded p-2">
-                    <div className="text-slate-400 text-[10px]">HL CÒN THÔNG THOÁNG</div>
-                    <div className="text-sm font-bold text-amber-400 mt-0.5">{simulationState.occupiedCorridors || 0}</div>
+                  <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-2.5 shadow-sm">
+                    <div className="text-slate-400 text-xs uppercase tracking-wider">HL THÔNG THOÁNG</div>
+                    <div className="text-2xl font-bold text-amber-400 mt-1 tabular-nums">{simulationState.occupiedCorridors || 0}</div>
                   </div>
-                  <div className="bg-slate-800/80 border border-slate-700/60 rounded p-2">
-                    <div className="text-slate-400 text-[10px]">HÀNH LANG MẮC KẸT</div>
-                    <div className={`text-sm font-bold mt-0.5 ${simulationState.trappedCorridors?.length ? 'text-red-400' : 'text-slate-400'}`}>
+                  <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-2.5 shadow-sm">
+                    <div className="text-slate-400 text-xs uppercase tracking-wider">HL MẮC KẸT</div>
+                    <div className={`text-2xl font-bold mt-1 tabular-nums ${simulationState.trappedCorridors?.length ? 'text-rose-400' : 'text-slate-400'}`}>
                       {simulationState.trappedCorridors?.length || 0}
                     </div>
                   </div>
-                  <div className="bg-slate-800/80 border border-slate-700/60 rounded p-2">
-                    <div className="text-slate-400 text-[10px]">LỐI THOÁT</div>
-                    <div className="text-sm font-bold text-emerald-400 mt-0.5">{simulationState.availableExits ?? '–'}</div>
+                  <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-2.5 shadow-sm">
+                    <div className="text-slate-400 text-xs uppercase tracking-wider">LỐI THOÁT</div>
+                    <div className="text-2xl font-bold text-emerald-400 mt-1 tabular-nums">{simulationState.availableExits ?? '–'}</div>
                   </div>
                 </div>
                 {devices.length > 0 && (
-                  <div className="mt-2 flex items-center justify-between text-xs bg-slate-800/80 border border-slate-700/60 rounded px-2 py-1.5 font-mono">
-                    <span className="text-slate-400 text-[11px]">THIẾT BỊ CHỈ DẪN</span>
+                  <div className="mt-2.5 flex items-center justify-between text-xs bg-slate-900/60 border border-slate-800/80 rounded-xl px-3 py-2 font-mono shadow-sm">
+                    <span className="text-slate-400 text-xs uppercase tracking-wider">THIẾT BỊ CHỈ DẪN</span>
                     <span>
                       <b className="text-emerald-400">{(guidanceState.devices || []).filter(device => device.status === 'online').length}</b>
                       <span className="text-slate-400"> / {devices.length} ONLINE</span>
                       {(guidanceState.devices || []).some(device => device.status === 'offline') && (
-                        <b className="text-red-400 ml-2">
+                        <b className="text-rose-400 ml-2">
                           {(guidanceState.devices || []).filter(device => device.status === 'offline').length} OFFLINE
                         </b>
                       )}
@@ -1072,31 +1075,37 @@ function App() {
                   </div>
                 )}
                 {simulationState.trappedCorridors?.length > 0 && (
-                  <div className="mt-2 text-[11px] font-mono text-red-300 bg-red-950/60 border border-red-800/60 rounded p-2">
-                    Cảnh báo tắc nghẽn: {simulationState.trappedCorridors.map(corridor => `${corridor.name} (${Math.round((corridor.k || 0) * 100)}%)`).join(', ')}
+                  <div className="mt-2.5 text-xs font-mono text-rose-300 bg-rose-500/10 border border-rose-500/20 rounded-xl p-2.5 flex items-start gap-2 shadow-sm">
+                    <svg className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                    </svg>
+                    <div>
+                      <div className="font-bold text-rose-300 uppercase tracking-wide">Cảnh báo tắc nghẽn:</div>
+                      <div className="mt-0.5 text-rose-200/90">{simulationState.trappedCorridors.map(corridor => `${corridor.name} (${Math.round((corridor.k || 0) * 100)}%)`).join(', ')}</div>
+                    </div>
                   </div>
                 )}
               </div>
 
               {/* Scenario & Compliance */}
-              <div className="p-3 border-b border-slate-800 space-y-2 text-xs">
+              <div className="p-3.5 border-b border-slate-800/80 space-y-2.5 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">Kịch bản hành vi</span>
+                  <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Kịch bản hành vi</span>
                   <button
                     type="button"
                     onClick={() => setShowChaosHelp(prev => !prev)}
-                    className="text-blue-400 hover:text-blue-300 text-[11px] font-mono cursor-pointer transition-colors"
+                    className="text-cyan-400 hover:text-cyan-300 text-xs font-mono cursor-pointer transition-colors"
                   >
                     {showChaosHelp ? '[ Thu gọn ]' : '[ Hướng dẫn ]'}
                   </button>
                 </div>
                 <div className="space-y-1">
-                  <div className="flex justify-between text-slate-300 text-[11px] font-mono">
+                  <div className="flex justify-between text-slate-300 text-xs font-mono">
                     <span>Tuân thủ chỉ dẫn:</span>
-                    <strong className="text-blue-400 font-bold">{Math.round(behaviorSettings.guidance_compliance * 100)}%</strong>
+                    <strong className="text-cyan-400 font-bold tabular-nums">{Math.round(behaviorSettings.guidance_compliance * 100)}%</strong>
                   </div>
                   <input
-                    className="w-full accent-blue-600 h-1.5 bg-slate-700 rounded-sm cursor-pointer"
+                    className="w-full accent-cyan-500 h-1.5 bg-slate-800 rounded-sm cursor-pointer"
                     type="range" min="0" max="1" step="0.05"
                     value={behaviorSettings.guidance_compliance}
                     onChange={event => setBehaviorSettings(prev => ({ ...prev, guidance_compliance: Number(event.target.value) }))}
@@ -1104,24 +1113,24 @@ function App() {
                 </div>
                 <button
                   onClick={saveBehaviorSettings}
-                  className="w-full rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 py-1 text-xs font-medium cursor-pointer transition-colors"
+                  className="w-full rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/80 text-slate-200 py-1.5 text-xs font-medium cursor-pointer transition-colors shadow-sm"
                 >
                   Áp dụng kịch bản
                 </button>
                 {simulationState.behavior?.automaticMix && (
-                  <div className="text-[11px] text-slate-400 font-mono bg-slate-950/40 p-1.5 rounded border border-slate-800">
+                  <div className="text-xs text-slate-400 font-mono bg-slate-900/60 p-2 rounded-xl border border-slate-800/80">
                     Quen: {Math.round(simulationState.behavior.automaticMix.familiar * 100)}% · Đám đông: {Math.round(simulationState.behavior.automaticMix.followCrowd * 100)}% · Ngẫu nhiên: {Math.round(simulationState.behavior.automaticMix.randomSafe * 100)}%
                   </div>
                 )}
                 {simulationState.behavior && (
-                  <div className="text-[11px] text-slate-400 font-mono">
+                  <div className="text-xs text-slate-400 font-mono">
                     Lệch hướng: {Number(simulationState.behavior.deviated_load || 0).toFixed(2)} · Bị chặn: {Number(simulationState.behavior.rejected_unsafe_deviation || 0).toFixed(2)}
                   </div>
                 )}
 
                 {/* Collapsible simple guide */}
                 {showChaosHelp && (
-                  <div className="mt-2 p-2.5 rounded bg-slate-950/90 border border-slate-800 text-slate-300 space-y-1.5 leading-relaxed text-[11px]">
+                  <div className="mt-2 p-3 rounded-xl bg-slate-950/90 border border-slate-800/80 text-slate-300 space-y-2 leading-relaxed text-xs shadow-md">
                     <div className="font-semibold text-slate-200 flex items-center justify-between">
                       <span>Cơ chế mô phỏng hành vi:</span>
                       <button
@@ -1171,20 +1180,20 @@ function App() {
 
                     const statusConfig = isBlocked
                       ? {
-                        dot: 'bg-red-500',
-                        text: 'text-red-400',
-                        border: 'border-red-600/60',
-                        bg: 'bg-red-950/30',
+                        dot: 'bg-rose-400',
+                        text: 'text-rose-300',
+                        border: 'border-rose-500/20',
+                        bg: 'bg-rose-500/10',
                         title: 'BỊ PHONG TỎA',
                         desc: 'Lối đi đang cấm lưu thông do sự cố khẩn cấp.',
                         advice: 'Hành lang đang bị phong tỏa. D* Lite đã điều hướng dòng người sang tuyến an toàn khác.'
                       }
                       : ratio >= 0.8
                         ? {
-                          dot: 'bg-red-500',
-                          text: 'text-red-400',
-                          border: 'border-red-600/60',
-                          bg: 'bg-red-950/30',
+                          dot: 'bg-rose-400',
+                          text: 'text-rose-300',
+                          border: 'border-rose-500/20',
+                          bg: 'bg-rose-500/10',
                           title: 'KÉM THÔNG THOÁNG',
                           desc: 'Độ thông thoáng thấp, lưu lượng vượt ngưỡng an toàn.',
                           advice: 'Hành lang kém thông thoáng. Hệ thống đang tự động phân luồng sang hành lang thông thoáng hơn.'
@@ -1192,18 +1201,18 @@ function App() {
                         : ratio >= 0.5
                           ? {
                             dot: 'bg-amber-400',
-                            text: 'text-amber-400',
-                            border: 'border-amber-600/60',
-                            bg: 'bg-amber-950/30',
+                            text: 'text-amber-300',
+                            border: 'border-amber-500/20',
+                            bg: 'bg-amber-500/10',
                             title: 'THÔNG THOÁNG VỪA',
                             desc: 'Mật độ đang tăng nhưng vẫn lưu thông ổn định.',
                             advice: 'Độ thông thoáng ổn định, đang được hệ thống điều tiết nhịp nhàng.'
                           }
                           : {
                             dot: 'bg-emerald-400',
-                            text: 'text-emerald-400',
-                            border: 'border-emerald-600/60',
-                            bg: 'bg-emerald-950/30',
+                            text: 'text-emerald-300',
+                            border: 'border-emerald-500/20',
+                            bg: 'bg-emerald-500/10',
                             title: 'THÔNG THOÁNG TỐT',
                             desc: 'Hành lang thông thoáng, lưu thông an toàn.',
                             advice: 'Hành lang thông thoáng, đảm bảo khả năng sơ tán tiêu chuẩn.'
@@ -1222,46 +1231,52 @@ function App() {
                     };
 
                     return (
-                      <div className="bg-slate-900 rounded border border-slate-700/80 p-3 space-y-3 shadow-sm">
+                      <div className="bg-slate-900/60 rounded-xl border border-slate-800/80 p-3.5 space-y-3.5 shadow-sm backdrop-blur-sm">
                         {/* 1. Header */}
-                        <div className="flex items-start justify-between gap-2 pb-2 border-b border-slate-800">
+                        <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-slate-800">
                           <div className="min-w-0 flex-1">
                             <div className="text-white font-bold text-sm leading-tight tracking-wide break-words">{corridorTitle}</div>
-                            <div className="text-slate-400 text-[10px] font-mono uppercase mt-0.5">Hành lang liên kết</div>
+                            <div className="text-slate-400 text-xs font-mono uppercase mt-0.5 tracking-wider">Hành lang liên kết</div>
                           </div>
                           <button
                             onClick={() => setSelectedItem(null)}
-                            className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex-shrink-0"
+                            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex-shrink-0"
                             title="Đóng panel"
                           >
                             <svg className="w-4 h-4 stroke-current fill-none stroke-2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" /></svg>
                           </button>
                         </div>
 
-                        {/* 2. Status Badge */}
-                        <div className={`rounded p-2 border ${statusConfig.border} ${statusConfig.bg}`}>
+                        {/* 2. Status Callout Banner */}
+                        <div className={`rounded-xl p-3 border ${statusConfig.border} ${statusConfig.bg}`}>
                           <div className="flex items-center gap-2">
-                            <span className={`w-2 h-2 rounded-full ${statusConfig.dot}`} />
-                            <span className={`text-[11px] font-mono font-bold tracking-wider uppercase ${statusConfig.text}`}>
+                            {isBlocked ? (
+                              <svg className="w-4 h-4 text-rose-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                              </svg>
+                            ) : (
+                              <span className={`w-2 h-2 rounded-full ${statusConfig.dot}`} />
+                            )}
+                            <span className={`text-xs font-mono font-bold tracking-wider uppercase ${statusConfig.text}`}>
                               {statusConfig.title}
                             </span>
                           </div>
-                          <div className="text-slate-300 text-xs mt-0.5">{statusConfig.desc}</div>
+                          <div className="text-slate-300 text-xs mt-1 leading-relaxed">{statusConfig.desc}</div>
                         </div>
 
                         {/* 3. Guidance note */}
-                        <div className="bg-slate-950/50 rounded border border-slate-800 p-2 text-xs text-slate-300 leading-relaxed">
+                        <div className="bg-slate-950/60 rounded-xl border border-slate-800/80 p-3 text-xs text-slate-300 leading-relaxed shadow-inner">
                           {statusConfig.advice}
                         </div>
 
                         {/* 4. Collapsible Technical Details & Metrics */}
-                        <div className="border border-slate-800 rounded bg-slate-950/40 overflow-hidden">
+                        <div className="border border-slate-800/80 rounded-xl bg-slate-950/40 overflow-hidden">
                           <button
                             type="button"
                             onClick={() => setShowCorridorDetails(prev => !prev)}
-                            className="w-full px-3 py-2 flex items-center justify-between text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/50 transition-colors cursor-pointer"
+                            className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/40 transition-colors cursor-pointer"
                           >
-                            <span className="font-mono text-[11px] text-slate-300">
+                            <span className="font-mono text-xs text-slate-300 tracking-wider">
                               {showCorridorDetails ? '▼ THÔNG SỐ CHI TIẾT' : '▶ THÔNG SỐ CHI TIẾT'}
                             </span>
                             <span className="text-[10px] text-slate-400 font-mono">
@@ -1270,32 +1285,32 @@ function App() {
                           </button>
 
                           {showCorridorDetails && (
-                            <div className="p-2.5 border-t border-slate-800 space-y-2.5">
+                            <div className="p-3 border-t border-slate-800/80 space-y-3">
                               {/* 4 Metrics Matrix */}
-                              <div className="grid grid-cols-2 gap-1.5 font-mono">
-                                <div className="bg-slate-950/60 rounded border border-slate-800 p-2">
-                                  <div className="text-slate-400 text-[10px]">MẬT ĐỘ LẤP ĐẦY</div>
-                                  <div className={`text-xl font-bold mt-0.5 ${isBlocked || ratio >= 0.8 ? 'text-red-400' : ratio >= 0.5 ? 'text-amber-400' : 'text-emerald-400'
+                              <div className="grid grid-cols-2 gap-2 font-mono">
+                                <div className="bg-slate-900/60 rounded-xl border border-slate-800/80 p-2.5 shadow-sm">
+                                  <div className="text-slate-400 text-xs uppercase tracking-wider">MẬT ĐỘ LẤP ĐẦY</div>
+                                  <div className={`text-2xl font-bold mt-1 tabular-nums ${isBlocked || ratio >= 0.8 ? 'text-rose-400' : ratio >= 0.5 ? 'text-amber-400' : 'text-emerald-400'
                                     }`}>
                                     {densityPct}%
                                   </div>
                                 </div>
-                                <div className="bg-slate-950/60 rounded border border-slate-800 p-2">
-                                  <div className="text-slate-400 text-[10px]">SỐ NGƯỜI QUY ĐỔI</div>
-                                  <div className="text-xl font-bold text-white mt-0.5">
-                                    {curPeople} <span className="text-[10px] font-normal text-slate-400">/ {capPeople}</span>
+                                <div className="bg-slate-900/60 rounded-xl border border-slate-800/80 p-2.5 shadow-sm">
+                                  <div className="text-slate-400 text-xs uppercase tracking-wider">SỐ NGƯỜI QUY ĐỔI</div>
+                                  <div className="text-2xl font-bold text-white mt-1 tabular-nums">
+                                    {curPeople} <span className="text-xs font-normal text-slate-400">/ {capPeople}</span>
                                   </div>
                                 </div>
-                                <div className="bg-slate-950/60 rounded border border-slate-800 p-2">
-                                  <div className="text-slate-400 text-[10px]">VẬN TỐC DÒNG</div>
-                                  <div className="text-xl font-bold text-blue-400 mt-0.5">
-                                    {speed} <span className="text-[10px] font-normal text-slate-400">m/s</span>
+                                <div className="bg-slate-900/60 rounded-xl border border-slate-800/80 p-2.5 shadow-sm">
+                                  <div className="text-slate-400 text-xs uppercase tracking-wider">VẬN TỐC DÒNG</div>
+                                  <div className="text-2xl font-bold text-cyan-400 mt-1 tabular-nums">
+                                    {speed} <span className="text-xs font-normal text-slate-400">m/s</span>
                                   </div>
                                 </div>
-                                <div className="bg-slate-950/60 rounded border border-slate-800 p-2">
-                                  <div className="text-slate-400 text-[10px]">BỀ RỘNG</div>
-                                  <div className="text-xl font-bold text-white mt-0.5">
-                                    {width.toFixed(1)} <span className="text-[10px] font-normal text-slate-400">m</span>
+                                <div className="bg-slate-900/60 rounded-xl border border-slate-800/80 p-2.5 shadow-sm">
+                                  <div className="text-slate-400 text-xs uppercase tracking-wider">BỀ RỘNG</div>
+                                  <div className="text-2xl font-bold text-white mt-1 tabular-nums">
+                                    {width.toFixed(1)} <span className="text-xs font-normal text-slate-400">m</span>
                                   </div>
                                 </div>
                               </div>
@@ -1303,7 +1318,7 @@ function App() {
                               <div className="space-y-1.5 text-xs text-slate-300 font-mono pt-1 border-t border-slate-800/80">
                               <div className="flex justify-between py-0.5 border-b border-slate-900">
                                 <span className="text-slate-400">Cảm biến</span>
-                                <span className="text-blue-400">WiFi CSI Sensing</span>
+                                <span className="text-cyan-400">WiFi CSI Sensing</span>
                               </div>
                               <div className="flex justify-between py-0.5 border-b border-slate-900">
                                 <span className="text-slate-400">Sức chứa thiết kế</span>
@@ -1325,7 +1340,7 @@ function App() {
                                 <span className="text-slate-400">Ưu tiên điều hướng</span>
                                 <span>
                                   {isBlocked ? (
-                                    <span className="text-red-400 font-bold">[PHONG TỎA]</span>
+                                    <span className="text-rose-400 font-bold">[PHONG TỎA]</span>
                                   ) : weightVal !== undefined && weightVal !== 'Bị chặn' && Number(weightVal) < 15 ? (
                                     <span className="text-emerald-400 font-bold">[ƯU TIÊN CAO]</span>
                                   ) : (
@@ -1340,19 +1355,19 @@ function App() {
                                 const valueAt = (seconds) => Math.round((forecast.median?.[seconds - 1] ?? 0) * 100);
                                 return (
                                   <div className="pt-2">
-                                    <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Dự báo thông thoáng (60s tới)</div>
-                                    <div className="grid grid-cols-3 gap-1 text-center">
-                                      <div className="bg-slate-900 rounded p-1 border border-slate-800">
-                                        <div className="text-[9px] text-slate-500">15s</div>
-                                        <div className="text-xs font-bold text-white">{valueAt(15)}%</div>
+                                    <div className="text-xs uppercase font-bold text-slate-400 mb-1 tracking-wider">Dự báo thông thoáng (60s tới)</div>
+                                    <div className="grid grid-cols-3 gap-1.5 text-center">
+                                      <div className="bg-slate-900/90 rounded-lg p-1.5 border border-slate-800">
+                                        <div className="text-[10px] text-slate-500">15s</div>
+                                        <div className="text-sm font-bold text-white mt-0.5">{valueAt(15)}%</div>
                                       </div>
-                                      <div className="bg-slate-900 rounded p-1 border border-slate-800">
-                                        <div className="text-[9px] text-slate-500">30s</div>
-                                        <div className="text-xs font-bold text-white">{valueAt(30)}%</div>
+                                      <div className="bg-slate-900/90 rounded-lg p-1.5 border border-slate-800">
+                                        <div className="text-[10px] text-slate-500">30s</div>
+                                        <div className="text-sm font-bold text-white mt-0.5">{valueAt(30)}%</div>
                                       </div>
-                                      <div className="bg-slate-900 rounded p-1 border border-slate-800">
-                                        <div className="text-[9px] text-slate-500">60s</div>
-                                        <div className="text-xs font-bold text-white">{valueAt(60)}%</div>
+                                      <div className="bg-slate-900/90 rounded-lg p-1.5 border border-slate-800">
+                                        <div className="text-[10px] text-slate-500">60s</div>
+                                        <div className="text-sm font-bold text-white mt-0.5">{valueAt(60)}%</div>
                                       </div>
                                     </div>
                                   </div>
@@ -1360,22 +1375,22 @@ function App() {
                               })()}
 
                               {/* Manual Simulation adjustment */}
-                              <div className="pt-2 border-t border-slate-900 space-y-1.5">
-                                <div className="text-[10px] uppercase font-bold text-slate-400">Thử nghiệm phản ứng phân luồng</div>
+                              <div className="pt-2 border-t border-slate-900 space-y-2">
+                                <div className="text-xs uppercase font-bold text-slate-400 tracking-wider">Thử nghiệm phản ứng phân luồng</div>
                                 <div className="flex items-center gap-1.5">
                                   <button
                                     disabled={simulationState.status !== 'running'}
                                     onClick={() => handleAdjustOccupancy(corridor.id, -densityStep)}
-                                    className="flex-1 py-1 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-white font-medium cursor-pointer text-xs border border-slate-700"
+                                    className="flex-1 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-white font-medium cursor-pointer text-xs border border-slate-700 transition-colors"
                                   >+ Tăng độ thoáng</button>
                                   <button
                                     disabled={simulationState.status !== 'running'}
                                     onClick={() => handleAdjustOccupancy(corridor.id, densityStep)}
-                                    className="flex-1 py-1 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-30 text-white font-medium cursor-pointer text-xs border border-blue-600"
+                                    className="flex-1 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:opacity-30 text-white font-medium cursor-pointer text-xs border border-cyan-500 transition-colors"
                                   >− Giảm độ thoáng</button>
                                 </div>
-                                <div className="pt-1 space-y-0.5">
-                                  <div className="flex justify-between text-[10px]">
+                                <div className="pt-1 space-y-1">
+                                  <div className="flex justify-between text-xs">
                                     <span className="text-slate-400">Mức nguy cơ H(e)</span>
                                     <span className="text-amber-400 font-bold">{metric.hazard ?? 0}/100</span>
                                   </div>
@@ -1383,7 +1398,7 @@ function App() {
                                     type="range" min="0" max="100" step="1"
                                     value={metric.hazard ?? 0}
                                     onChange={event => handleAdjustHazard(corridor.id, event.target.value)}
-                                    className="w-full accent-amber-500 cursor-pointer h-1 bg-slate-700 rounded-sm"
+                                    className="w-full accent-amber-500 cursor-pointer h-1.5 bg-slate-700 rounded-sm"
                                   />
                                 </div>
                               </div>
@@ -1393,17 +1408,17 @@ function App() {
                         </div>
 
                         {/* Endpoint Signage Quick Links */}
-                        <div className="p-2 rounded bg-slate-950/60 border border-slate-800 space-y-1.5">
+                        <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-1.5">
                           <div className="flex items-center justify-between">
-                            <span className="text-slate-400 text-[10px] font-mono uppercase font-semibold">Bảng hiệu 2 đầu hành lang</span>
-                            <span className="text-[9px] text-cyan-400 font-mono">Điều hướng</span>
+                            <span className="text-slate-400 text-xs font-mono uppercase font-semibold tracking-wider">Bảng hiệu 2 đầu hành lang</span>
+                            <span className="text-[10px] text-cyan-400 font-mono">Điều hướng</span>
                           </div>
                           <div className="grid grid-cols-2 gap-1.5 pt-0.5">
                             {areaA && (
                               <button
                                 type="button"
                                 onClick={() => setSelectedItem({ type: 'area', data: areaA })}
-                                className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 text-[11px] font-mono truncate border border-slate-700 text-center cursor-pointer transition-colors"
+                                className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-300 text-xs font-mono truncate border border-slate-800 text-center cursor-pointer transition-colors"
                                 title={`Xem bảng hiệu tại ${areaA.name}`}
                               >
                                 📍 {areaA.name}
@@ -1413,7 +1428,7 @@ function App() {
                               <button
                                 type="button"
                                 onClick={() => setSelectedItem({ type: 'area', data: areaB })}
-                                className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 text-[11px] font-mono truncate border border-slate-700 text-center cursor-pointer transition-colors"
+                                className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-300 text-xs font-mono truncate border border-slate-800 text-center cursor-pointer transition-colors"
                                 title={`Xem bảng hiệu tại ${areaB.name}`}
                               >
                                 📍 {areaB.name}
@@ -1426,14 +1441,19 @@ function App() {
                         <div className="pt-1">
                           <button
                             onClick={toggleIncident}
-                            className={`w-full py-2 rounded font-semibold text-xs transition-colors flex items-center justify-center gap-2 border ${isBlocked
-                              ? 'bg-emerald-950/60 border-emerald-700 text-emerald-300 hover:bg-emerald-900/80'
-                              : 'bg-red-950/60 border-red-700 text-red-300 hover:bg-red-900/80'
+                            className={`w-full py-2.5 rounded-xl font-semibold text-xs transition-all duration-200 flex items-center justify-center gap-2 border shadow-sm ${isBlocked
+                              ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25 hover:border-emerald-500/60 shadow-emerald-950'
+                              : 'bg-rose-500/10 border-rose-500/30 text-rose-300 hover:bg-rose-500/20 hover:border-rose-500/50 shadow-rose-950'
                               }`}
                           >
+                            {isBlocked ? (
+                              <svg className="w-4 h-4 stroke-current fill-none stroke-2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>
+                            ) : (
+                              <svg className="w-4 h-4 stroke-current fill-none stroke-2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                            )}
                             <span>{isBlocked ? 'Khôi phục lưu thông hành lang' : 'Phong tỏa hành lang (Báo cháy / Sự cố)'}</span>
                           </button>
-                          <p className="text-[10px] text-slate-500 mt-1 text-center font-mono">
+                          <p className="text-[10px] text-slate-500 mt-1.5 text-center font-mono">
                             {isBlocked
                               ? 'Lối đi đang phong tỏa. Nhấn để mở lại.'
                               : 'Thử chặn hành lang để quan sát D* Lite tái định tuyến tăng dần.'}
@@ -1443,19 +1463,19 @@ function App() {
                     );
                   })() : (
                     /* Area Panel (Room, Exit, Stairs) */
-                    <div className="bg-slate-900 rounded border border-slate-700/80 p-3 space-y-3 shadow-sm">
-                      <div className="flex items-start justify-between gap-2 pb-2 border-b border-slate-800">
+                    <div className="bg-slate-900/60 rounded-xl border border-slate-800/80 p-3.5 space-y-3.5 shadow-sm backdrop-blur-sm">
+                      <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-slate-800">
                         <div className="min-w-0 flex-1">
                           <div className="text-white font-bold text-sm leading-tight tracking-wide break-words">
                             {selectedItem.data.name}
                           </div>
-                          <div className="text-slate-400 text-[10px] font-mono uppercase mt-0.5">
+                          <div className="text-slate-400 text-xs font-mono uppercase mt-0.5 tracking-wider">
                             {selectedItem.data.type === 'exit' ? 'Lối thoát khẩn cấp' : selectedItem.data.type === 'stairs' ? 'Thang bộ' : 'Khu vực / Phòng'}
                           </div>
                         </div>
                         <button
                           onClick={() => setSelectedItem(null)}
-                          className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex-shrink-0"
+                          className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex-shrink-0"
                           title="Đóng panel"
                         >
                           <svg className="w-4 h-4 stroke-current fill-none stroke-2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" /></svg>
@@ -1465,15 +1485,15 @@ function App() {
                       {/* Phân luồng đề xuất */}
                       {guidanceState.decisions?.[selectedItem.data.id]?.routes?.length > 0 && (
                         <div className="space-y-1.5">
-                          <div className="text-slate-400 text-[10px] font-mono uppercase font-semibold">Tuyến D* Lite chỉ định</div>
+                          <div className="text-slate-400 text-xs font-mono uppercase font-semibold tracking-wider">Tuyến D* Lite chỉ định</div>
                           {guidanceState.decisions[selectedItem.data.id].routes.map((route, index) => {
                             const routeCorridor = corridors.find(corridor => corridor.id === route.edge_id);
                             return (
-                              <div key={route.edge_id} className="flex items-center justify-between bg-slate-950/60 rounded p-1.5 text-xs font-mono border border-slate-800">
+                              <div key={route.edge_id} className="flex items-center justify-between bg-slate-950/60 rounded-lg p-2 text-xs font-mono border border-slate-800/80">
                                 <span className="text-slate-300 truncate mr-2">
                                   {index + 1}. {routeCorridor?.name || route.edge_id}
                                 </span>
-                                <span className="text-blue-400 font-bold">
+                                <span className="text-cyan-400 font-bold">
                                   {Math.round((route.probability || 0) * 100)}%
                                 </span>
                               </div>
@@ -1484,22 +1504,22 @@ function App() {
 
                       {/* Loa và bảng hiệu điều phối tại chỗ */}
                       {devices.some(device => device.area_id === selectedItem.data.id) ? (
-                        <div className="space-y-1.5 pt-2 border-t border-slate-800">
+                        <div className="space-y-2 pt-2 border-t border-slate-800">
                           <div className="flex items-center justify-between">
-                            <div className="text-slate-400 text-[10px] font-mono uppercase font-semibold">Thiết bị điều phối tại chỗ</div>
+                            <div className="text-slate-400 text-xs font-mono uppercase font-semibold tracking-wider">Thiết bị điều phối tại chỗ</div>
                             <button
                               type="button"
                               onClick={() => setMode('edit')}
-                              className="text-[10px] font-mono text-blue-400 hover:text-blue-300 underline cursor-pointer"
+                              className="text-xs font-mono text-cyan-400 hover:text-cyan-300 underline cursor-pointer"
                             >
                               Sửa / Thêm
                             </button>
                           </div>
                           {devices.filter(device => device.area_id === selectedItem.data.id).map(device => {
                             const live = (guidanceState.devices || []).find(item => item.id === device.id);
-                            const statusColor = live?.status === 'online' ? 'text-emerald-400' : live?.status === 'offline' ? 'text-red-400' : 'text-amber-400';
+                            const statusColor = live?.status === 'online' ? 'text-emerald-400' : live?.status === 'offline' ? 'text-rose-400' : 'text-amber-400';
                             return (
-                              <div key={device.id} className="bg-slate-950/60 rounded p-2 text-xs font-mono border border-slate-800">
+                              <div key={device.id} className="bg-slate-950/60 rounded-lg p-2 text-xs font-mono border border-slate-800/80">
                                 <div className="flex justify-between items-center">
                                   <span className="text-white font-medium">[{device.type === 'sign' ? 'SIGN' : 'SPEAKER'}] {device.name}</span>
                                   <span className={`text-[10px] uppercase font-bold ${statusColor}`}>{live?.status || 'idle'}</span>
@@ -1512,18 +1532,18 @@ function App() {
                           })}
                         </div>
                       ) : (
-                        <div className="p-2.5 rounded bg-slate-950/60 border border-slate-800 space-y-1.5 pt-2 border-t border-slate-800">
+                        <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-1.5 pt-2 border-t border-slate-800">
                           <div className="flex items-center justify-between">
-                            <div className="text-slate-400 text-[10px] font-mono uppercase font-semibold">Thiết bị điều phối tại chỗ</div>
+                            <div className="text-slate-400 text-xs font-mono uppercase font-semibold tracking-wider">Thiết bị điều phối tại chỗ</div>
                             <button
                               type="button"
                               onClick={() => setMode('edit')}
-                              className="px-2 py-0.5 text-[10px] font-mono bg-blue-700 hover:bg-blue-600 text-white rounded font-medium transition-colors cursor-pointer"
+                              className="px-2.5 py-1 text-xs font-mono bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-medium transition-colors cursor-pointer shadow-sm"
                             >
                               + Thêm thiết bị
                             </button>
                           </div>
-                          <p className="text-[11px] text-slate-500 font-mono">
+                          <p className="text-xs text-slate-500 font-mono">
                             Chưa gán thiết bị IoT điều hướng tại nút này. Nhấn nút trên để chuyển sang chế độ Thiết kế.
                           </p>
                         </div>
@@ -1547,11 +1567,16 @@ function App() {
                           <div className="pt-2">
                             <button
                               onClick={toggleExitIncident}
-                              className={`w-full py-2 rounded font-semibold text-xs transition-colors flex items-center justify-center gap-2 border ${isBlocked
-                                ? 'bg-emerald-950/60 border-emerald-700 text-emerald-300 hover:bg-emerald-900/80'
-                                : 'bg-red-950/60 border-red-700 text-red-300 hover:bg-red-900/80'
+                              className={`w-full py-2.5 rounded-xl font-semibold text-xs transition-all duration-200 flex items-center justify-center gap-2 border shadow-sm ${isBlocked
+                                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25 hover:border-emerald-500/60 shadow-emerald-950'
+                                : 'bg-rose-500/10 border-rose-500/30 text-rose-300 hover:bg-rose-500/20 hover:border-rose-500/50 shadow-rose-950'
                                 }`}
                             >
+                              {isBlocked ? (
+                                <svg className="w-4 h-4 stroke-current fill-none stroke-2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>
+                              ) : (
+                                <svg className="w-4 h-4 stroke-current fill-none stroke-2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                              )}
                               <span>{isBlocked ? 'Khôi phục lối thoát này' : 'Phong tỏa lối thoát này (Có khói/lửa)'}</span>
                             </button>
                           </div>
@@ -1563,12 +1588,12 @@ function App() {
               ) : (
                 <>
                   {/* Floor Overview */}
-                  <div className="p-3 border-b border-slate-800">
-                    <div className="text-slate-400 text-[11px] font-bold uppercase tracking-wider mb-2 flex items-center justify-between">
+                  <div className="p-3.5 border-b border-slate-800/80">
+                    <div className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2.5 flex items-center justify-between font-mono">
                       <span>Giám sát các tầng</span>
                       <span className="text-[10px] font-normal font-mono text-slate-500">CHỌN TẦNG</span>
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-1.5">
                       {[...floors].sort((a, b) => b - a).map(floor => {
                         const floorCorridors = corridors.filter(corridor => {
                           const areaA = areas.find(area => area.id === corridor.areaA_id);
@@ -1597,17 +1622,17 @@ function App() {
                           <div
                             key={floor}
                             onClick={() => setActiveFloor(floor)}
-                            className={`cursor-pointer rounded px-2.5 py-1.5 flex items-center justify-between text-xs transition-colors border ${isActive
-                              ? 'bg-slate-800 border-blue-500/80 text-white'
-                              : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:bg-slate-800/60 hover:text-white'
+                            className={`cursor-pointer rounded-xl px-3 py-2 flex items-center justify-between text-xs transition-all border shadow-sm ${isActive
+                              ? 'bg-slate-800/90 border-cyan-500/40 text-white shadow-cyan-950'
+                              : 'bg-slate-900/60 border-slate-800/80 text-slate-300 hover:bg-slate-800/60 hover:text-white'
                               }`}
                           >
-                            <span className="font-medium">Tầng {floor}</span>
-                            <span className="font-mono text-[11px] flex items-center gap-1.5">
-                              <span className={`w-2 h-2 rounded-full ${floorStatus === 'red' ? 'bg-red-500' : floorStatus === 'yellow' ? 'bg-amber-500' : 'bg-emerald-500'
+                            <span className="font-semibold">Tầng {floor}</span>
+                            <span className="font-mono text-xs flex items-center gap-2">
+                              <span className={`w-2 h-2 rounded-full ${floorStatus === 'red' ? 'bg-rose-500' : floorStatus === 'yellow' ? 'bg-amber-400' : 'bg-emerald-400'
                                 }`} />
                               <span className={
-                                floorStatus === 'red' ? 'text-red-400 font-semibold' : floorStatus === 'yellow' ? 'text-amber-400 font-semibold' : 'text-emerald-400 font-semibold'
+                                floorStatus === 'red' ? 'text-rose-400 font-semibold' : floorStatus === 'yellow' ? 'text-amber-400 font-semibold' : 'text-emerald-400 font-semibold'
                               }>
                                 {floorStatus === 'red' ? 'NGUY CƠ' : floorStatus === 'yellow' ? 'TRUNG BÌNH' : 'THÔNG THOÁNG'}
                               </span>
@@ -1619,31 +1644,31 @@ function App() {
                   </div>
 
                   {/* Current floor metrics */}
-                  <div className="p-3 border-b border-slate-800">
-                    <div className="text-slate-400 text-[11px] font-bold uppercase tracking-wider mb-2 font-mono">
+                  <div className="p-3.5 border-b border-slate-800/80">
+                    <div className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2.5 font-mono">
                       THÔNG SỐ TẦNG {activeFloor}
                     </div>
-                    <div className="grid grid-cols-2 gap-1.5 font-mono text-xs mb-2">
-                      <div className="bg-slate-800/80 border border-slate-700/60 rounded p-2">
-                        <div className="text-slate-400 text-[10px]">HÀNH LANG</div>
-                        <div className="text-base font-bold text-white mt-0.5">{currentFloorCorridors.length}</div>
+                    <div className="grid grid-cols-2 gap-2 font-mono text-xs mb-2.5">
+                      <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-2.5 shadow-sm">
+                        <div className="text-slate-400 text-xs uppercase tracking-wider">HÀNH LANG</div>
+                        <div className="text-2xl font-bold text-white mt-1 tabular-nums">{currentFloorCorridors.length}</div>
                       </div>
-                      <div className="bg-slate-800/80 border border-slate-700/60 rounded p-2">
-                        <div className="text-slate-400 text-[10px]">LẤP ĐẦY ≥80%</div>
-                        <div className={`text-base font-bold mt-0.5 ${criticalCount > 0 ? 'text-red-400' : 'text-slate-300'}`}>{criticalCount}</div>
+                      <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-2.5 shadow-sm">
+                        <div className="text-slate-400 text-xs uppercase tracking-wider">LẤP ĐẦY ≥80%</div>
+                        <div className={`text-2xl font-bold mt-1 tabular-nums ${criticalCount > 0 ? 'text-rose-400' : 'text-slate-300'}`}>{criticalCount}</div>
                       </div>
                     </div>
                     {occupancyRatios.length > 0 && (
                       <div className="font-mono">
-                        <div className="flex justify-between text-xs mb-1">
-                          <span className="text-slate-400 text-[10px]">MẬT ĐỘ TRUNG BÌNH:</span>
-                          <span className={`font-bold ${avgOccupancy >= 0.8 ? 'text-red-400' : avgOccupancy >= 0.5 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                        <div className="flex justify-between text-xs mb-1.5">
+                          <span className="text-slate-400 text-xs uppercase tracking-wider">MẬT ĐỘ TRUNG BÌNH:</span>
+                          <span className={`font-bold tabular-nums text-sm ${avgOccupancy >= 0.8 ? 'text-rose-400' : avgOccupancy >= 0.5 ? 'text-amber-400' : 'text-emerald-400'}`}>
                             {(avgOccupancy * 100).toFixed(0)}%
                           </span>
                         </div>
-                        <div className="h-1.5 bg-slate-800 rounded-sm overflow-hidden border border-slate-700/60">
+                        <div className="h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800/80 p-0.5">
                           <div
-                            className={`h-full rounded-sm transition-all duration-500 ${avgOccupancy >= 0.8 ? 'bg-red-500' : avgOccupancy >= 0.5 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                            className={`h-full rounded-full transition-all duration-500 ${avgOccupancy >= 0.8 ? 'bg-rose-500 shadow-sm shadow-rose-500/50' : avgOccupancy >= 0.5 ? 'bg-amber-500 shadow-sm shadow-amber-500/50' : 'bg-emerald-500 shadow-sm shadow-emerald-500/50'}`}
                             style={{ width: `${avgOccupancy * 100}%` }}
                           />
                         </div>
@@ -1652,27 +1677,27 @@ function App() {
                   </div>
 
                   {/* System Event Logs */}
-                  <div className="p-3">
-                    <div className="flex justify-between items-center mb-2">
-                      <div className="text-slate-400 text-[11px] font-bold uppercase tracking-wider font-mono">Nhật ký sự kiện</div>
-                      <button onClick={() => setLogs([])} className="text-[11px] font-mono text-slate-500 hover:text-slate-300">XÓA</button>
+                  <div className="p-3.5">
+                    <div className="flex justify-between items-center mb-2.5">
+                      <div className="text-slate-400 text-xs font-bold uppercase tracking-wider font-mono">Nhật ký sự kiện</div>
+                      <button onClick={() => setLogs([])} className="text-xs font-mono text-slate-500 hover:text-cyan-400 transition-colors uppercase tracking-wider cursor-pointer">XÓA</button>
                     </div>
                     <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
                       {logs.length === 0 ? (
                         <div className="text-slate-500 text-xs italic text-center py-4 font-mono">Chưa có sự kiện nào</div>
                       ) : (
                         logs.map((log, idx) => (
-                          <div key={idx} className={`p-1.5 rounded border text-[11px] font-mono ${log.type === 'alert'
-                            ? 'bg-red-950/30 border-red-800/60 text-red-200'
-                            : 'bg-slate-800/40 border-slate-700/60 text-slate-300'
+                          <div key={idx} className={`p-2.5 rounded-xl border text-xs font-mono shadow-sm ${log.type === 'alert'
+                            ? 'bg-rose-500/10 border-rose-500/20 text-rose-200'
+                            : 'bg-slate-900/60 border-slate-800/80 text-slate-300'
                             }`}>
-                            <div className="flex justify-between items-center mb-0.5">
-                              <span className={`font-bold ${log.type === 'alert' ? 'text-red-400' : 'text-blue-400'}`}>
+                            <div className="flex justify-between items-center mb-1">
+                              <span className={`font-bold ${log.type === 'alert' ? 'text-rose-400' : 'text-cyan-400'}`}>
                                 {log.type === 'alert' ? '[CẢNH BÁO]' : '[ĐIỀU HƯỚNG]'}
                               </span>
                               <span className="text-slate-500 text-[10px]">{log.time}</span>
                             </div>
-                            <div className="leading-snug text-slate-300">{log.message}</div>
+                            <div className="leading-relaxed text-slate-300">{log.message}</div>
                           </div>
                         ))
                       )}

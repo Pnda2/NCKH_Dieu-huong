@@ -3,8 +3,15 @@ import json
 import math
 import os
 import random
+import sys
 import threading
 import time
+
+for stream in (sys.stdout, sys.stderr):
+    try:
+        stream.reconfigure(encoding="utf-8", errors="replace")
+    except AttributeError:
+        pass
 
 import paho.mqtt.client as mqtt
 

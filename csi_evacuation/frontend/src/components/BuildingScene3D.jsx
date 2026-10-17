@@ -344,7 +344,7 @@ const PeopleDots = React.memo(function PeopleDots({ corridorModels, metrics, occ
   return dots.length ? <instancedMesh ref={meshRef} args={[null, null, dots.length]}><sphereGeometry args={[1, 10, 10]} /><meshStandardMaterial roughness={.35} /></instancedMesh> : null;
 });
 
-function GuidanceArrow3D({ from, to, probability = 1 }) {
+function GuidanceArrow3D({ from, to }) {
   const dx = to[0] - from[0];
   const dz = to[2] - from[2];
   const length = Math.hypot(dx, dz) || 1;
@@ -401,13 +401,6 @@ function GuidanceArrow3D({ from, to, probability = 1 }) {
           </mesh>
         </group>
       ))}
-      {probability < 0.99 && (
-        <Html position={[(from[0] + to[0]) / 2, from[1] + 0.25, (from[2] + to[2]) / 2]} center distanceFactor={10} style={{ pointerEvents: 'none' }}>
-          <div className="bg-emerald-950/85 text-emerald-300 text-[9px] font-bold px-1.5 py-0.5 rounded border border-emerald-500/50 shadow">
-            {Math.round(probability * 100)}%
-          </div>
-        </Html>
-      )}
     </group>
   );
 }
@@ -508,7 +501,6 @@ const GuidanceArrows3D = React.memo(function GuidanceArrows3D({ corridorModels, 
           key={`guide3d-${item.corridorId}`}
           from={item.from}
           to={item.to}
-          probability={item.probability}
         />
       ))}
     </group>
@@ -581,31 +573,51 @@ function getSignDirective(command, presentation, device) {
   return { arrow: '↗', text: device.type === 'sign' ? 'LỐI THOÁT' : 'LOA HƯỚNG DẪN', tone: 'info' };
 }
 
-const Signboards3D = React.memo(function Signboards3D({ areas, devices = [], guidanceState, scene, activeFloor, floorView, floors }) {
+const Signboards3D = React.memo(function Signboards3D({ areas, corridors = [], devices = [], guidanceState, scene, activeFloor, floorView, floors }) {
   const visibleDevices = useMemo(() => {
-    return (devices || []).filter((device) => {
-      const area = areas.find((a) => a.id === device.area_id);
-      return area && visibleOnFloor(area, activeFloor, floorView);
-    });
-  }, [devices, areas, activeFloor, floorView]);
+    return (devices || []).map((device) => {
+      if (device.area_id) {
+        const area = areas.find((a) => a.id === device.area_id);
+        if (!area || !visibleOnFloor(area, activeFloor, floorView)) return null;
+        const siblings = devices.filter((d) => d.area_id === device.area_id);
+        const index = siblings.findIndex((d) => d.id === device.id);
+        const areaPos = worldPosition(area, scene, activeFloor, floorView, floors);
+        const visual = visualForArea(area);
+        const offsetX = (index - (siblings.length - 1) / 2) * 0.7;
+        const signY = areaPos[1] + visual.heightMeters + 0.35;
+        const signPos = [areaPos[0] + offsetX, signY, areaPos[2]];
+        return { device, signPos };
+      }
+      if (device.edge_id) {
+        const corridor = corridors.find((c) => c.id === device.edge_id);
+        if (!corridor) return null;
+        const areaA = areas.find((a) => a.id === corridor.areaA_id);
+        const areaB = areas.find((a) => a.id === corridor.areaB_id);
+        if (!areaA || !areaB) return null;
+        if (!visibleOnFloor(areaA, activeFloor, floorView) && !visibleOnFloor(areaB, activeFloor, floorView)) return null;
+
+        const posA = worldPosition(areaA, scene, activeFloor, floorView, floors);
+        const posB = worldPosition(areaB, scene, activeFloor, floorView, floors);
+        const siblings = devices.filter((d) => d.edge_id === device.edge_id);
+        const index = siblings.findIndex((d) => d.id === device.id);
+        const t = siblings.length === 1 ? 0.5 : (index + 0.5) / siblings.length;
+        const x = posA[0] * (1 - t) + posB[0] * t;
+        const y = Math.max(posA[1], posB[1]) + 0.9;
+        const z = posA[2] * (1 - t) + posB[2] * t;
+        return { device, signPos: [x, y, z] };
+      }
+      return null;
+    }).filter(Boolean);
+  }, [devices, areas, corridors, activeFloor, floorView, scene, floors]);
 
   if (!visibleDevices.length) return null;
 
   return (
     <group>
-      {visibleDevices.map((device) => {
-        const area = areas.find((a) => a.id === device.area_id);
-        const siblings = devices.filter((d) => d.area_id === device.area_id);
-        const index = siblings.findIndex((d) => d.id === device.id);
-        const areaPos = worldPosition(area, scene, activeFloor, floorView, floors);
-        const visual = visualForArea(area);
-        const liveState = guidanceState?.devices?.find((d) => d.id === device.id);
+      {visibleDevices.map(({ device, signPos }) => {
+        const liveState = guidanceState?.devices?.find((d) => d.id === device.id || (d.node_id != null && d.node_id === device.node_id));
         const directive = getSignDirective(liveState?.last_command?.command, liveState?.last_command?.presentation, device);
         const status = liveState?.status || 'idle';
-
-        const offsetX = (index - (siblings.length - 1) / 2) * 0.7;
-        const signY = areaPos[1] + visual.heightMeters + 0.35;
-        const signPos = [areaPos[0] + offsetX, signY, areaPos[2]];
 
         const badgeClass = directive.tone === 'danger'
           ? 'bg-red-950/90 text-red-200 border-red-500 shadow-red-900/50'
@@ -623,7 +635,9 @@ const Signboards3D = React.memo(function Signboards3D({ areas, devices = [], gui
             </mesh>
             <Html center distanceFactor={10} style={{ pointerEvents: 'none' }}>
               <div className={`flex items-center gap-1 px-2 py-0.5 rounded-md border shadow-xl text-[11px] font-bold whitespace-nowrap transition-all duration-300 ${badgeClass}`}>
-                <span className="text-sm leading-none animate-pulse">{directive.arrow}</span>
+                <span className="text-sm leading-none animate-pulse">
+                  {device.type === 'speaker' && directive.tone !== 'danger' ? '🔊' : directive.arrow}
+                </span>
                 <span>{device.name}: {directive.text}</span>
                 {status === 'online' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block ml-0.5" />}
                 {status === 'offline' && <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block ml-0.5" />}
@@ -686,7 +700,7 @@ function SceneContents({ areas, corridors, stairwells, activeFloor, scene, selec
     <PeopleDots corridorModels={corridorModels} metrics={edgeMetrics} occupancyData={occupancyData} simulationStatus={simulationStatus} movementByCorridor={movementByCorridor} guidanceState={guidanceState} incidentData={incidentData} />
     <GuidanceArrows3D corridorModels={corridorModels} guidanceState={guidanceState} incidentData={incidentData} simulationStatus={simulationStatus} metrics={edgeMetrics} occupancyData={occupancyData} movementByCorridor={movementByCorridor} />
     <BlockedBarriers3D corridorModels={corridorModels} incidentData={incidentData} />
-    <Signboards3D areas={visibleAreas} devices={devices} guidanceState={guidanceState} scene={scene} activeFloor={activeFloor} floorView={floorView} floors={floors} />
+    <Signboards3D areas={visibleAreas} corridors={renderedCorridors} devices={devices} guidanceState={guidanceState} scene={scene} activeFloor={activeFloor} floorView={floorView} floors={floors} />
     <CsiSensorNetwork3D corridorModels={corridorModels} simulationStatus={simulationStatus} selectedItem={selectedItem} />
     {visibleAreas.filter((area) => !(floorView === 'overview' && area.type === 'stairs' && area.stairwellId)).map((area) => <AreaBlock key={area.id} area={area} scene={scene} activeFloor={activeFloor} floorView={floorView} floors={floors} selected={selectedItem?.type === 'area' && selectedItem.data.id === area.id} editable={editable && editTool === 'select'} corridorMode={editable && editTool === 'addCorridor'} snap={snap} onSelect={onSelectItem} onMove={onUpdateArea} onStartCorridor={startCorridor} onDragState={setDragging} stairwell={wells.find((well) => well.id === area.stairwellId)} portalOptions={portalOptions} portals={portalRegistry.byArea[area.id] || []} junctionColor={junctionColors[area.id]} />)}
     <CameraRig areas={areas} scene={scene} activeFloor={activeFloor} floorView={floorView} floors={floors} command={command} dragging={dragging} />

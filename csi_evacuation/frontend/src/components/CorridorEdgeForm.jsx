@@ -6,7 +6,18 @@ const AREA_DOT_COLOR = {
   exit: 'bg-emerald-500',
 };
 
-export default function CorridorEdgeForm({ corridor, areas, onChange, onDelete, onSelectArea }) {
+export default function CorridorEdgeForm({
+  corridor,
+  areas,
+  devices = [],
+  guidanceDevices = [],
+  onChange,
+  onDelete,
+  onSelectArea,
+  onUpdateDevice,
+  onAddDevice,
+  onDeleteDevice,
+}) {
   const [name, setName] = useState(corridor.name || '');
   const [length, setLength] = useState(corridor.length || 10);
   const [widthMeters, setWidthMeters] = useState(corridor.widthMeters || 1.2);
@@ -15,6 +26,7 @@ export default function CorridorEdgeForm({ corridor, areas, onChange, onDelete, 
   );
   const [flowCapacity, setFlowCapacity] = useState(corridor.flowCapacity ?? '');
   const [initialOccupancy, setInitialOccupancy] = useState(corridor.initialOccupancy ?? 0.5);
+  const [csiLinkId, setCsiLinkId] = useState(corridor.csiLinkId || '');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
@@ -26,6 +38,7 @@ export default function CorridorEdgeForm({ corridor, areas, onChange, onDelete, 
     );
     setFlowCapacity(corridor.flowCapacity ?? '');
     setInitialOccupancy(corridor.initialOccupancy ?? 0.5);
+    setCsiLinkId(corridor.csiLinkId || '');
     setShowDeleteConfirm(false);
   }, [
     corridor.id,
@@ -35,10 +48,15 @@ export default function CorridorEdgeForm({ corridor, areas, onChange, onDelete, 
     corridor.capacityPeople,
     corridor.flowCapacity,
     corridor.initialOccupancy,
+    corridor.csiLinkId,
   ]);
 
   const areaA = (areas || []).find(a => a.id === corridor.areaA_id);
   const areaB = (areas || []).find(a => a.id === corridor.areaB_id);
+
+  const corridorDevices = devices.filter(
+    d => d.edge_id === corridor.id || (d.type === 'speaker' && d.csiLinkId && corridor.csiLinkId && corridor.csiLinkId.includes(d.csiLinkId))
+  );
 
   const isCrossFloor = areaA && areaB && (areaA.floor !== areaB.floor);
   const isStair = areaA?.type === 'stairs' || areaB?.type === 'stairs' || isCrossFloor;
@@ -170,6 +188,201 @@ export default function CorridorEdgeForm({ corridor, areas, onChange, onDelete, 
               <span className="text-[9px] text-slate-400 uppercase">Đầu hành lang</span>
               <span className="font-bold truncate w-full">📍 {areaB.name}</span>
             </button>
+          )}
+        </div>
+      </div>
+
+      {/* Gắn cặp cảm biến CSI đo đạc hành lang */}
+      <div className="bg-slate-950/80 rounded border border-slate-800 p-2.5 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="text-slate-300 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            Cặp cảm biến CSI thực tế
+          </div>
+          <span className="text-[9px] text-emerald-400 font-mono font-semibold">WiEvac ESP32-S3</span>
+        </div>
+        <p className="text-[11px] text-slate-400 leading-snug">
+          Gán cặp node phát-thu CSI thực tế (trên Pi) vào hành lang này. Mô hình các chấm cảm biến 3D trên tường sẽ liên kết với node được chọn:
+        </p>
+        <div className="pt-1 space-y-1.5">
+          <input
+            type="text"
+            value={csiLinkId}
+            placeholder="VD: link-1 hoặc link-1, link-2, link-3..."
+            onChange={(e) => {
+              const val = e.target.value;
+              setCsiLinkId(val);
+              onChange({ ...corridor, csiLinkId: val || undefined });
+            }}
+            className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded px-2.5 py-1.5 font-mono focus:outline-none focus:border-emerald-500 placeholder:text-slate-600"
+          />
+          <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono">
+            <span className="text-slate-500">Gán nhanh:</span>
+            {['link-1', 'link-2', 'link-3', 'link-4'].map((lnk) => {
+              const isIncluded = csiLinkId.split(',').map(s => s.trim()).includes(lnk);
+              return (
+                <button
+                  key={lnk}
+                  type="button"
+                  onClick={() => {
+                    let parts = csiLinkId ? csiLinkId.split(',').map(s => s.trim()).filter(Boolean) : [];
+                    if (parts.includes(lnk)) {
+                      parts = parts.filter(p => p !== lnk);
+                    } else {
+                      parts.push(lnk);
+                    }
+                    const newVal = parts.join(', ');
+                    setCsiLinkId(newVal);
+                    onChange({ ...corridor, csiLinkId: newVal || undefined });
+                  }}
+                  className={`px-1.5 py-0.5 rounded border transition-colors ${
+                    isIncluded
+                      ? 'bg-emerald-950 text-emerald-300 border-emerald-600'
+                      : 'bg-slate-900 text-slate-400 border-slate-700 hover:border-slate-500'
+                  }`}
+                >
+                  {isIncluded ? '✓ ' : '+ '}{lnk}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {csiLinkId && (
+          <div className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
+            <span>✓</span> Đang liên kết với luồng dữ liệu <strong>[{csiLinkId}]</strong> từ Raspberry Pi.
+          </div>
+        )}
+
+        {/* Danh sách Node ESP32-S3 tích hợp Loa DFPlayer Mini trên hành lang */}
+        <div className="pt-2.5 border-t border-slate-800/80 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-violet-300 flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5 text-violet-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" />
+              </svg>
+              Node Loa điều hướng ({corridorDevices.length} node)
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const nextNodeId = corridorDevices.length + 1;
+                const newDev = {
+                  id: `node_spkr_${Date.now()}`,
+                  name: `Node ${nextNodeId} - Loa Hành Lang`,
+                  type: 'speaker',
+                  edge_id: corridor.id,
+                  csiLinkId: corridor.csiLinkId || undefined,
+                  node_id: nextNodeId,
+                  topic: `building/guidance/speaker/node_${nextNodeId}`,
+                };
+                onAddDevice?.(newDev);
+              }}
+              className="px-2 py-0.5 text-[10px] rounded bg-violet-950/80 hover:bg-violet-900 border border-violet-700 text-violet-200 font-mono transition-colors"
+            >
+              + Thêm Node Loa
+            </button>
+          </div>
+
+          {corridorDevices.length === 0 ? (
+            <div className="flex items-center justify-between p-2 rounded bg-slate-900/50 border border-slate-800/60">
+              <span className="text-[10px] text-slate-400 font-mono">Chưa gán Node Loa nào cho hành lang này</span>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {corridorDevices.map((dev) => {
+                const live = guidanceDevices.find(item => item.id === dev.id || (item.node_id != null && item.node_id === dev.node_id));
+                const status = live?.status || 'idle';
+                const statusStyle = {
+                  online: 'bg-emerald-950/60 text-emerald-300 border-emerald-800/60',
+                  waiting_ack: 'bg-amber-950/60 text-amber-300 border-amber-800/60',
+                  offline: 'bg-rose-950/60 text-rose-300 border-rose-800/60',
+                  idle: 'bg-slate-800 text-slate-400 border-slate-700',
+                }[status] || 'bg-slate-800 text-slate-400 border-slate-700';
+
+                return (
+                  <div key={dev.id} className="bg-slate-900/90 rounded p-2 border border-slate-800 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <input
+                        value={dev.name || ''}
+                        onChange={e => onUpdateDevice?.({ ...dev, name: e.target.value })}
+                        className="flex-1 min-w-0 bg-slate-800 text-white rounded px-2 py-1 text-xs font-mono border border-slate-700 focus:border-violet-500 focus:outline-none"
+                        placeholder="Tên Node Loa"
+                      />
+                      <span className={`font-mono text-[9px] px-1.5 py-0.5 rounded border uppercase tracking-wider ${statusStyle}`}>
+                        {status}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onDeleteDevice?.(dev.id)}
+                        className="text-slate-500 hover:text-rose-400 text-xs px-1.5"
+                        title="Hủy gán loa khỏi hành lang này"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 text-[10px] font-mono">
+                      <div>
+                        <span className="text-slate-500 block">NODE PHẦN CỨNG:</span>
+                        <select
+                          value={dev.node_id || 1}
+                          onChange={e => {
+                            const nid = Number(e.target.value);
+                            onUpdateDevice?.({
+                              ...dev,
+                              node_id: nid,
+                              topic: `building/guidance/speaker/node_${nid}`,
+                            });
+                          }}
+                          className="w-full bg-slate-800 text-violet-300 font-bold rounded px-1.5 py-1 border border-slate-700 focus:outline-none text-[10px] cursor-pointer"
+                        >
+                          <option value={1}>Node #1 (Loa/RX)</option>
+                          <option value={2}>Node #2 (Loa/TX1)</option>
+                          <option value={3}>Node #3 (Loa/TX2)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block">VỊ TRÍ LẮP ĐẶT:</span>
+                        <select
+                          value={dev.placement || 'middle'}
+                          onChange={e => {
+                            const pl = e.target.value;
+                            const posName = pl === 'near_a' ? `Đầu ${areaA?.name || 'A'}` : pl === 'near_b' ? `Đầu ${areaB?.name || 'B'}` : 'Ở giữa HL';
+                            onUpdateDevice?.({
+                              ...dev,
+                              placement: pl,
+                              name: `Node ${dev.node_id || 1} - Loa (${posName})`,
+                            });
+                          }}
+                          className="w-full bg-slate-800 text-cyan-300 font-semibold rounded px-1.5 py-1 border border-slate-700 focus:outline-none text-[10px] cursor-pointer"
+                        >
+                          <option value="near_a">📍 Đầu {areaA?.name || 'Điểm A'}</option>
+                          <option value="middle">📍 Ở giữa hành lang</option>
+                          <option value="near_b">📍 Đầu {areaB?.name || 'Điểm B'}</option>
+                        </select>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block">MQTT TOPIC:</span>
+                        <input
+                          value={dev.topic || ''}
+                          onChange={e => onUpdateDevice?.({ ...dev, topic: e.target.value })}
+                          className="w-full bg-slate-800 text-slate-300 rounded px-1.5 py-1 border border-slate-700 focus:outline-none text-[10px]"
+                          placeholder="Tự động"
+                        />
+                      </div>
+                    </div>
+
+                    {live?.last_command && (
+                      <div className="text-[10px] font-mono text-cyan-300 bg-cyan-950/40 border border-cyan-800/50 rounded p-1.5 flex items-center justify-between">
+                        <span>Lệnh âm thanh: <strong>{live.last_command.command}</strong></span>
+                        <span className="text-slate-400 text-[9px]">seq: {live.last_command.sequence}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>

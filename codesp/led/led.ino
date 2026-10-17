@@ -36,9 +36,10 @@
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <ESP32-HUB75-MatrixPanel-I2S-DMA.h>
+#include <DFRobotDFPlayerMini.h>
 
 // ========================================================================================
-// 1. CẤU HÌNH PHẦN CỨNG PANEL LED P10 (HUB75 16 CHÂN) CHO ESP32-S3
+// 1. CẤU HÌNH PHẦN CỨNG PANEL LED P10 (HUB75 16 CHÂN) & MODULE ÂM THANH DFPLAYER MINI
 // ========================================================================================
 #define PANEL_RES_X 32
 #define PANEL_RES_Y 16
@@ -62,20 +63,39 @@
 
 MatrixPanel_I2S_DMA *dma_display = nullptr;
 
+// Cấu hình chân UART cho module âm thanh DFPlayer Mini (đã test tại test_loa.ino):
+#define PIN_MP3_RX 2  // ESP32-S3 RX (Nối chân TX của DFPlayer)
+#define PIN_MP3_TX 1  // ESP32-S3 TX (Nối qua trở 1k vào chân RX của DFPlayer)
+
+HardwareSerial mp3Serial(1);
+DFRobotDFPlayerMini myDFPlayer;
+bool dfPlayerReady = false;
+
+uint16_t targetAudioTrack = 0;
+uint16_t currentPlayingTrack = 0;
+unsigned long lastAudioPlayTime = 0;
+const unsigned long AUDIO_REPEAT_INTERVAL = 7000; // Nhắc lại câu lệnh sau mỗi 7 giây
+
 // ========================================================================================
 // 2. CẤU HÌNH WIFI & MÁY CHỦ MQTT WIEVAC
 // ========================================================================================
-// Thông tin WiFi:
-const char* WIFI_SSID     = "DYP05";      // Tên WiFi
-const char* WIFI_PASSWORD = "12344321";  // Mật khẩu WiFi
+// CHẾ ĐỘ 1: KẾT NỐI VỚI BẢN ĐỒ 3D TRÊN MÁY TÍNH (Mô phỏng chắn hành lang trên PC)
+// (Máy tính của bạn đang kết nối WiFi WiEvac_Pi5 và có IP là 10.42.0.174)
+const char* WIFI_SSID     = "WiEvac_Pi5"; // WiFi Hotspot của Pi (cả PC và ESP đều bắt mạng này)
+const char* WIFI_PASSWORD = "wievac2026"; // Mật khẩu WiFi Pi
+const char* MQTT_HOST     = "10.42.0.174"; // IP máy tính chạy Bản đồ 3D
+const uint16_t MQTT_PORT  = 1884;          // Cổng MQTT trên máy tính
 
-// Địa chỉ IP của máy tính đang chạy WiEvac backend (Port 1883):
-const char* MQTT_HOST     = "192.168.1.198";
-const uint16_t MQTT_PORT  = 1883;
+// CHẾ ĐỘ 2: CHẠY ĐỘC LẬP VỚI RASPBERRY PI (Không cần máy tính)
+// const char* WIFI_SSID     = "WiEvac_Pi5";
+// const char* WIFI_PASSWORD = "wievac2026";
+// const char* MQTT_HOST     = "10.42.0.1";  // IP của Pi
+// const uint16_t MQTT_PORT  = 1883;
 
 // Định danh của bảng hiệu này trong hệ thống WiEvac
-// Khớp với ID của thiết bị khi bạn thêm "+ BẢNG HIỆU" trên giao diện Web UI
+// Khớp với ID của thiết bị trong config.json trên Pi:
 const char* DEVICE_ID     = "sign_p10_01";
+
 
 // ========================================================================================
 // 3. ĐỊNH NGHĨA MÀU SẮC RGB 565
@@ -137,6 +157,64 @@ unsigned long lastMqttRetry = 0;
 unsigned long lastHeartbeat = 0;
 uint8_t animStep = 0;
 bool blinkToggle = false;
+
+// ========================================================================================
+// 4.1. HÀM QUẢN LÝ VÀ PHÁT ÂM THANH QUA DFPLAYER MINI (NON-BLOCKING)
+// ========================================================================================
+uint16_t getTrackForIntent(const String& cmd, const String& dir, const String& clip) {
+  // Ánh xạ sang các file 0001.mp3 -> 0006.mp3 trong thư mục /MP3/ trên thẻ nhớ:
+  if (clip == "evacuate_left" || dir == "LEFT" || cmd == "LEFT") return 1;       // 0001.mp3: Rẽ trái
+  if (clip == "evacuate_right" || dir == "RIGHT" || cmd == "RIGHT") return 2;    // 0002.mp3: Rẽ phải
+  if (clip == "evacuate_straight" || dir == "STRAIGHT" || cmd == "STRAIGHT") return 3; // 0003.mp3: Đi thẳng
+  if (clip == "turn_back" || dir == "BACK" || cmd == "BACK" || cmd == "TURN_BACK") return 4; // 0004.mp3: Quay lại
+  if (clip == "shelter_in_place" || cmd == "DO_NOT_ENTER" || cmd == "NO_SAFE_ROUTE" || dir == "NO_SAFE_ROUTE") return 5; // 0005.mp3: Trú ẩn
+  if (clip == "exit_here" || cmd == "EXIT" || dir == "EXIT") return 6;           // 0006.mp3: Cửa thoát hiểm
+  return 0;
+}
+
+void stopGuidanceAudio() {
+  if (dfPlayerReady && currentPlayingTrack != 0) {
+    myDFPlayer.stop();
+  }
+  targetAudioTrack = 0;
+  currentPlayingTrack = 0;
+}
+
+void manageAudioPlayback(unsigned long now) {
+  if (!dfPlayerReady || gState.mode == MODE_STANDBY || targetAudioTrack == 0) {
+    return;
+  }
+  // 1. Khi lệnh/hướng thay đổi: Lập tức phát track mới
+  if (targetAudioTrack != currentPlayingTrack) {
+    currentPlayingTrack = targetAudioTrack;
+    lastAudioPlayTime = now;
+    Serial.printf("[Audio] Chuyen huong -> Phat track /MP3/%04d.mp3 qua DFPlayer\n", currentPlayingTrack);
+    myDFPlayer.playMp3Folder(currentPlayingTrack);
+    return;
+  }
+  // 2. Khi duy trì cùng một hướng sơ tán: Nhắc lại sau chu kỳ (7 giây)
+  if (now - lastAudioPlayTime >= AUDIO_REPEAT_INTERVAL) {
+    lastAudioPlayTime = now;
+    Serial.printf("[Audio] Nhac lai chi dan -> Phat track /MP3/%04d.mp3 qua DFPlayer\n", currentPlayingTrack);
+    myDFPlayer.playMp3Folder(currentPlayingTrack);
+  }
+}
+
+void setupAudio() {
+  Serial.println("[Audio] Khoi dong DFPlayer Mini qua UART1 (RX=2, TX=1)...");
+  mp3Serial.begin(9600, SERIAL_8N1, PIN_MP3_RX, PIN_MP3_TX);
+  delay(200);
+  // Khởi tạo không cờ ACK để tương thích tốt với mọi dòng chip clone DFPlayer
+  if (myDFPlayer.begin(mp3Serial, false, false)) {
+    dfPlayerReady = true;
+    delay(200);
+    myDFPlayer.volume(25); // Mức âm lượng từ 0 - 30
+    Serial.println("[Audio] DFPlayer Mini khoi dong thanh cong va san sang!");
+  } else {
+    Serial.println("[Audio] Canh bao: Khong tim thay DFPlayer Mini (kiem tra nguon 5V/day RX-TX/the nho).");
+  }
+}
+
 
 // ========================================================================================
 // 5. GỬI BÁO CÁO NĂNG LỰC & XÁC NHẬN ACK ĐẾN WIEVAC
@@ -255,11 +333,23 @@ void processSignCommand(JsonObject& doc) {
     }
   }
 
+  // 5. Cập nhật bài âm thanh tương ứng (DFPlayer Mini)
+  String clip = "";
+  if (!pres.isNull()) {
+    clip = String(pres["audio_clip_id"] | "");
+  }
+  uint16_t newTrack = getTrackForIntent(gState.command, gState.direction, clip);
+  if (gState.mode != MODE_STANDBY && newTrack > 0) {
+    targetAudioTrack = newTrack;
+  } else {
+    stopGuidanceAudio();
+  }
+
   // Gửi xác nhận ACK về backend
   const char* devId = doc["device_id"] | DEVICE_ID;
   publishAck(seq, "display_applied", "p10_matrix_updated", devId);
-  Serial.printf("[WiEvac] Lenh: %s, Huong: %s, Ngã 3: %s (ID: %s)\n", 
-                cmd, dir, gState.isJunction ? "CO" : "KHONG", devId);
+  Serial.printf("[WiEvac] Lenh: %s, Huong: %s, Ngã 3: %s (Track: %u, ID: %s)\n", 
+                cmd, dir, gState.isJunction ? "CO" : "KHONG", newTrack, devId);
 }
 
 void onMqttMessage(char* topic, byte* payload, unsigned int length) {
@@ -290,6 +380,7 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
     gState.simRunning = false;
     gState.mode = MODE_STANDBY;
     gState.command = "STANDBY";
+    stopGuidanceAudio();
     Serial.println("[WiEvac] Reset gia lap -> Ve che do Standby.");
   }
 }
@@ -620,6 +711,9 @@ void setup() {
   dma_display->setBrightness8(90);  // Độ sáng dịu mắt, tiết kiệm nguồn
   dma_display->clearScreen();
 
+  // Khởi động module âm thanh DFPlayer Mini (UART 1: RX=2, TX=1)
+  setupAudio();
+
   // Khởi động mạng
   setupWifi();
   mqttClient.setServer(MQTT_HOST, MQTT_PORT);
@@ -641,8 +735,12 @@ void loop() {
     }
   }
 
-  // 3. Cập nhật hoạt ảnh và hiển thị ở 20 FPS (mỗi 50ms) đồng bộ thời gian thực
+  // 3. Quản lý phát lại âm thanh định kỳ qua DFPlayer Mini (Non-blocking)
+  manageAudioPlayback(now);
+
+  // 4. Cập nhật hoạt ảnh và hiển thị ở 20 FPS (mỗi 50ms) đồng bộ thời gian thực
   if (now - lastAnimTick >= 50) {
+
     uint8_t stepsPassed = (now - lastAnimTick) / 50;
     lastAnimTick += stepsPassed * 50;
     animStep += stepsPassed;

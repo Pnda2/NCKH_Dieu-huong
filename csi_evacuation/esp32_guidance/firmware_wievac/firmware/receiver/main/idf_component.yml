@@ -1,0 +1,7 @@
+## IDF Component Manager Manifest File
+dependencies:
+  idf: ">=5.0.0"
+  esp_csi_gain_ctrl:
+    path: "../managed_components/espressif__esp_csi_gain_ctrl"
+  cmake_utilities:
+    path: "../managed_components/espressif__cmake_utilities"

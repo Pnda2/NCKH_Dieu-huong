@@ -288,7 +288,12 @@ function App() {
     setSelectedItem(null);
   };
 
-  const handleAddDevice = (type, areaId) => {
+  const handleAddDevice = (typeOrDevice, areaId) => {
+    if (typeof typeOrDevice === 'object' && typeOrDevice !== null) {
+      setDevices(prev => [...prev, typeOrDevice]);
+      return;
+    }
+    const type = typeOrDevice;
     const id = `d_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
     const device = {
       id,
@@ -965,8 +970,13 @@ function App() {
                 <CorridorEdgeForm
                   corridor={selectedItem.data}
                   areas={areas}
+                  devices={devices}
+                  guidanceDevices={guidanceState.devices || []}
                   onSelectArea={(targetArea) => setSelectedItem({ type: 'area', data: targetArea })}
                   onChange={handleUpdateCorridor}
+                  onUpdateDevice={handleUpdateDevice}
+                  onAddDevice={handleAddDevice}
+                  onDeleteDevice={handleDeleteDevice}
                   onDelete={() => handleDeleteCorridor(selectedItem.data.id)}
                 />
               )}

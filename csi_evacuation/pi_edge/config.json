@@ -638,7 +638,8 @@
       "areaB_id": "a_1788182811417",
       "capacityPeople": 24,
       "flowCapacity": 1.56,
-      "hazard": 0
+      "hazard": 0,
+      "csiLinkId": ""
     },
     {
       "id": "e_1788183040256",
@@ -652,7 +653,8 @@
       "areaB_id": "a_1788182777734",
       "capacityPeople": 24,
       "flowCapacity": 1.56,
-      "hazard": 0
+      "hazard": 0,
+      "csiLinkId": "link-1, link-2"
     },
     {
       "id": "e_1788183041772",
@@ -666,7 +668,8 @@
       "areaB_id": "a_1788182808441",
       "capacityPeople": 24,
       "flowCapacity": 1.56,
-      "hazard": 0
+      "hazard": 0,
+      "csiLinkId": ""
     },
     {
       "id": "e_1788183043600",
@@ -1203,17 +1206,12 @@
   ],
   "devices": [
     {
-      "id": "d_1789053810837_280",
-      "name": "sign_p10_01",
-      "type": "sign",
-      "area_id": "area_1788183099728_31lh9xd6a",
-      "orientation": 0,
-      "topic": "building/guidance/sign/sign_p10_01",
-      "edgeDirections": {
-        "corr_1788183099728_351y9bdgj": "RIGHT",
-        "e_1788183434485": "STRAIGHT",
-        "corr_1788183099728_dmbe9b6ar": "BACK"
-      }
+      "id": "node_spkr_1792224859196",
+      "name": "Node 1 - Loa Hành Lang",
+      "type": "speaker",
+      "edge_id": "corr_1788183099728_qu86yjrlq",
+      "node_id": 1,
+      "topic": "building/guidance/speaker/node_1"
     }
   ],
   "floorImages": {},

@@ -48,13 +48,17 @@ function CsiNodeDot({ node, topo, simulationStatus }) {
 
     if (activeTxNode.id === node.id) {
       const pulse = 0.5 + 0.5 * Math.sin(time * 9);
-      matRef.current.color.set('#0ea5e9');
-      matRef.current.emissive.set('#38bdf8');
-      matRef.current.emissiveIntensity = 0.5 + pulse * 0.4;
+      const activeColor = topo.hasRealSensor ? '#10b981' : '#0ea5e9';
+      const emissiveColor = topo.hasRealSensor ? '#34d399' : '#38bdf8';
+      matRef.current.color.set(activeColor);
+      matRef.current.emissive.set(emissiveColor);
+      matRef.current.emissiveIntensity = 0.6 + pulse * 0.5;
     } else {
-      matRef.current.color.set('#090d16');
-      matRef.current.emissive.set('#000000');
-      matRef.current.emissiveIntensity = 0;
+      const baseColor = topo.hasRealSensor ? '#064e3b' : '#090d16';
+      const emissiveColor = topo.hasRealSensor ? '#059669' : '#000000';
+      matRef.current.color.set(baseColor);
+      matRef.current.emissive.set(emissiveColor);
+      matRef.current.emissiveIntensity = topo.hasRealSensor ? 0.3 : 0;
     }
   });
 
@@ -173,9 +177,9 @@ function CsiCorridorWaveRibbon({ topo, simulationStatus, isHighlighted }) {
   return (
     <mesh ref={meshRef} geometry={geometry} renderOrder={6}>
       <meshBasicMaterial
-        color={isHighlighted ? '#67e8f9' : '#38bdf8'}
+        color={topo.hasRealSensor ? '#10b981' : isHighlighted ? '#67e8f9' : '#38bdf8'}
         transparent
-        opacity={isHighlighted ? 0.65 : 0.44}
+        opacity={topo.hasRealSensor ? 0.65 : isHighlighted ? 0.65 : 0.44}
         side={THREE.DoubleSide}
         depthWrite={false}
       />
@@ -193,7 +197,14 @@ export default React.memo(function CsiSensorNetwork3D({
 }) {
   // Trích xuất cấu trúc topology node so le và các link lân cận cho mỗi hành lang
   const corridorsTopology = useMemo(() => {
-    return corridorModels.map((model) => extractCorridorCsiTopology(model, 9.0));
+    return corridorModels.map((model) => {
+      const topo = extractCorridorCsiTopology(model, 9.0);
+      return {
+        ...topo,
+        hasRealSensor: Boolean(model.corridor?.csiLinkId),
+        csiLinkId: model.corridor?.csiLinkId,
+      };
+    });
   }, [corridorModels]);
 
   const hasNodes = corridorsTopology.some((t) => t.nodes.length > 0);

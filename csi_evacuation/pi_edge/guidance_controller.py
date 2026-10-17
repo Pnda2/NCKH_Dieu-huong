@@ -204,33 +204,77 @@ class GuidanceController:
             return "waiting_ack"
         return "idle"
 
-    def _publish_command(self, client, device, decision, now, force=False):
+    def _publish_command(
+        self, client, device, decision, now, force=False,
+        edge_occupancy=None, blocked_edges=None, decisions=None, exits=None
+    ):
         device_id = device.get("id")
         device_type = device.get("type", "sign")
-        target_edge = decision.get("next_edge") if decision else None
-        route_commands = []
-        for route in (decision or {}).get("routes", []):
-            route_edge = route.get("edge_id")
-            route_commands.append(
-                {
-                    "target_edge": route_edge,
-                    "direction": self._infer_direction(device, route_edge),
-                    "probability": route.get("probability", 0),
-                }
+        edge_id = device.get("edge_id")
+
+        if edge_id and edge_id in self.edge_map:
+            edge = self.edge_map[edge_id]
+            is_blocked = bool(blocked_edges and edge_id in blocked_edges)
+            raw_occ = (edge_occupancy or {}).get(edge_id, 0.0)
+            occ = self._occupancy_ratio(raw_occ)
+            is_overloaded = (occ >= 0.85)
+
+            is_evac_route = any(
+                (dec or {}).get("next_edge") == edge_id for dec in (decisions or {}).values()
             )
+            area_a = self.area_map.get(edge.get("areaA_id"), {})
+            area_b = self.area_map.get(edge.get("areaB_id"), {})
+            # Chi coi la loi thoat neu hanh lang thuc su tiep giap truc tiep voi cua thoat hiem (type == 'exit')
+            leads_to_exit = (area_a.get("type") == "exit" or area_b.get("type") == "exit")
 
-        if decision and decision.get("at_exit"):
-            direction = "EXIT"
-        elif target_edge:
-            direction = self._infer_direction(device, target_edge)
+            if is_blocked or is_overloaded:
+                direction = "BACK"
+                command = "TURN_BACK"
+            elif is_evac_route and leads_to_exit:
+                direction = "EXIT"
+                command = "SAFE_EXIT"
+            elif is_evac_route:
+                direction = "STRAIGHT"
+                command = "GO_STRAIGHT"
+            else:
+                # Neu hanh lang khong con nguoi di qua (k=0), duy tri ban tin thoat hiem cuoi cung
+                # cho den khi nguoi dieu hanh bam ket thuc / dung mo phong
+                prev_payload = self.last_commands.get(device_id, {}).get("payload", {})
+                prev_cmd = prev_payload.get("command")
+                if prev_cmd in ("GO_STRAIGHT", "SAFE_EXIT", "TURN_LEFT", "TURN_RIGHT"):
+                    command = prev_cmd
+                    direction = prev_payload.get("direction", "STRAIGHT")
+                else:
+                    direction = "STANDBY"
+                    command = "STANDBY"
+
+            target_edge = edge_id
+            route_commands = []
         else:
-            direction = "NO_SAFE_ROUTE"
+            target_edge = decision.get("next_edge") if decision else None
+            route_commands = []
+            for route in (decision or {}).get("routes", []):
+                route_edge = route.get("edge_id")
+                route_commands.append(
+                    {
+                        "target_edge": route_edge,
+                        "direction": self._infer_direction(device, route_edge),
+                        "probability": route.get("probability", 0),
+                    }
+                )
 
-        command = (
-            direction
-            if device_type == "sign"
-            else self._speaker_command(direction)
-        )
+            if decision and decision.get("at_exit"):
+                direction = "EXIT"
+            elif target_edge:
+                direction = self._infer_direction(device, target_edge)
+            else:
+                direction = "NO_SAFE_ROUTE"
+
+            command = (
+                direction
+                if device_type == "sign"
+                else self._speaker_command(direction)
+            )
         route_signature = tuple(
             (
                 route.get("target_edge"),
@@ -254,16 +298,19 @@ class GuidanceController:
             "device_id": device_id,
             "device_type": device_type,
             "area_id": device.get("area_id"),
+            "edge_id": edge_id,
+            "csi_link_id": device.get("csiLinkId"),
+            "node_id": device.get("node_id"),
             "command": command,
             "direction": direction,
             "target_edge": target_edge,
             "probability": round(decision.get("probability", 0), 3)
             if decision
-            else 0,
+            else (1.0 if direction in ("EXIT", "STRAIGHT") else 0.0),
             "routes": route_commands,
             "generated_at": int(now),
             "valid_until": int(now) + COMMAND_VALID_SECONDS,
-            "priority": "emergency",
+            "priority": "emergency" if command in ("STOP_DANGER", "SAFE_EXIT", "TURN_BACK") else "normal",
         }
         payload["presentation"] = self._presentation(
             device, direction, decision, target_edge, payload["valid_until"]
@@ -383,15 +430,19 @@ class GuidanceController:
             decision = decisions.get(device.get("area_id"))
             previous_signature = self.last_commands.get(device_id, {}).get("signature")
             command_payload = self._publish_command(
-                client, device, decision, now, force=force
+                client, device, decision, now, force=force,
+                edge_occupancy=edge_occupancy, blocked_edges=blocked_edges,
+                decisions=decisions, exits=exits
             )
             current_signature = self.last_commands.get(device_id, {}).get("signature")
             if command_payload and previous_signature != current_signature:
                 target_edge = command_payload.get("target_edge")
-                destination = self.edge_map.get(target_edge, {}).get("name", target_edge) if target_edge else "lối thoát / vùng an toàn"
+                edge_info = self.edge_map.get(target_edge, {})
+                edge_title = edge_info.get("name", target_edge) if target_edge else "khu vực"
+                loc_desc = f"trên hành lang {edge_title}" if device.get("edge_id") else f"→ {edge_title}"
                 device_events.append({
                     "type": "guidance",
-                    "message": f"{device.get('name', device_id)} ({device.get('type', 'sign')}): {command_payload.get('command')} → {destination}",
+                    "message": f"{device.get('name', device_id)}: {command_payload.get('command')} {loc_desc}",
                     "time": time.strftime("%H:%M:%S"),
                 })
             device_states.append(
@@ -400,6 +451,9 @@ class GuidanceController:
                     "name": device.get("name", device_id),
                     "type": device.get("type", "sign"),
                     "area_id": device.get("area_id"),
+                    "edge_id": device.get("edge_id"),
+                    "csi_link_id": device.get("csiLinkId"),
+                    "node_id": device.get("node_id"),
                     "status": self._device_status(device_id, now),
                     "last_command": command_payload,
                     "last_ack": self.last_acks.get(device_id),

@@ -153,13 +153,14 @@ def stop_all(processes: list[subprocess.Popen]) -> None:
 
 def cleanup_zombies() -> None:
     if os.name == "nt":
+        mqtt_port = os.getenv("WIEVAC_MQTT_PORT", "1884")
         cmd = (
-            f"Get-NetTCPConnection -LocalPort 1883,3001,5173 -ErrorAction SilentlyContinue | "
+            f"Get-NetTCPConnection -LocalPort {mqtt_port},3001,5173 -ErrorAction SilentlyContinue | "
             f"Select-Object -ExpandProperty OwningProcess -Unique | "
-            f"ForEach-Object {{ Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }}; "
+            f"ForEach-Object {{ Stop-Process -Id $PSItem -Force -ErrorAction SilentlyContinue }}; "
             f"Get-CimInstance Win32_Process | "
-            f"Where-Object {{ ($_.CommandLine -like '*edge_core.py*' -or $_.CommandLine -like '*device_simulator.py*') -and $_.ProcessId -ne {os.getpid()} }} | "
-            f"ForEach-Object {{ Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }}"
+            f"Where-Object {{ ($PSItem.CommandLine -like '*edge_core.py*' -or $PSItem.CommandLine -like '*device_simulator.py*' -or $PSItem.CommandLine -like '*pi_downlink_bridge.py*' -or $PSItem.CommandLine -like '*bridge_pi_to_local.py*') -and $PSItem.ProcessId -ne {os.getpid()} }} | "
+            f"ForEach-Object {{ Stop-Process -Id $PSItem.ProcessId -Force -ErrorAction SilentlyContinue }}"
         )
         subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True)
         time.sleep(0.5)
@@ -191,20 +192,27 @@ def main() -> int:
     processes: list[subprocess.Popen] = []
     try:
         start("backend", ["node", "server.js"], BACKEND, environment, processes)
-        # Chờ broker MQTT sẵn sàng trên cổng 1883 trước khi khởi động client
+        mqtt_port = environment.get("WIEVAC_MQTT_PORT", "1884")
         deadline = time.time() + 10.0
         while time.time() < deadline:
-            if not port_available(int(environment.get("WIEVAC_MQTT_PORT", "1883"))):
+            if not port_available(int(mqtt_port)):
                 break
             time.sleep(0.2)
         start("edge", [sys.executable, "edge_core.py"], EDGE, environment, processes)
+        downlink_script = EDGE / "pi_downlink_bridge.py"
+        if downlink_script.exists():
+            start("downlink-bridge", [sys.executable, str(downlink_script)], EDGE, environment, processes)
         if environment.get("WIEVAC_SIMULATOR", "1") == "1":
             start("device-simulator", [sys.executable, "device_simulator.py"], EDGE, environment, processes)
+        else:
+            bridge_script = ROOT / "scripts" / "bridge_pi_to_local.py"
+            if bridge_script.exists():
+                start("pi-bridge", [sys.executable, str(bridge_script)], ROOT, environment, processes)
         start("frontend", [npm, "run", "dev", "--", "--host", "127.0.0.1", "--port", environment.get("WIEVAC_FRONTEND_PORT", "5173")], FRONTEND, environment, processes)
         print("WiEvac đang chạy:")
         print("  Dashboard: http://127.0.0.1:" + environment.get("WIEVAC_FRONTEND_PORT", "5173"))
         print("  API:       http://127.0.0.1:" + environment.get("WIEVAC_HTTP_PORT", "3001"))
-        print("  MQTT:      " + environment.get("WIEVAC_MQTT_HOST", "127.0.0.1") + ":" + environment.get("WIEVAC_MQTT_PORT", "1883"))
+        print("  MQTT:      " + environment.get("WIEVAC_MQTT_HOST", "127.0.0.1") + ":" + mqtt_port)
         print("Nhấn Ctrl+C để dừng sạch toàn bộ dịch vụ.")
         while True:
             if any(process.poll() is not None for process in processes):

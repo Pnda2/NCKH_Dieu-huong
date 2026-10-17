@@ -14,15 +14,17 @@ Express + Socket.IO → Dashboard / bảng hiệu / loa
 
 ## Kiến trúc và cổng
 
-| Thành phần                    | Entry point                                  | Cổng mặc định |
-| ----------------------------- | -------------------------------------------- | ------------: |
-| Dashboard React/Vite          | `csi_evacuation/frontend`                    |          5173 |
-| API + Socket.IO + MQTT broker | `csi_evacuation/backend/server.js`           |    3001, 1883 |
-| Pi edge, D\* Lite, CSI bridge | `csi_evacuation/pi_edge/edge_core.py`        |   MQTT client |
-| Thiết bị giả lập              | `csi_evacuation/pi_edge/device_simulator.py` |   MQTT client |
+| Thành phần                           | Entry point                                  | Cổng mặc định |
+| ------------------------------------ | -------------------------------------------- | ------------: |
+| Dashboard React/Vite (3D & 2D)       | `csi_evacuation/frontend`                    |          5173 |
+| API + Socket.IO + MQTT Broker Aedes  | `csi_evacuation/backend/server.js`           |    3001, 1884 |
+| Pi edge, D\* Lite, Guidance Planner  | `csi_evacuation/pi_edge/edge_core.py`        |   MQTT client |
+| Downlink Bridge (MQTT → UDP ESP32)   | `csi_evacuation/pi_edge/pi_downlink_bridge.py`|   UDP 8889    |
+| Thiết bị giả lập (Simulator)         | `csi_evacuation/pi_edge/device_simulator.py` |   MQTT client |
+| Cầu nối Pi 5 thực địa (Pi-Bridge)    | `scripts/bridge_pi_to_local.py`              |   MQTT client |
 
 Không có database ngoài: cấu hình bản đồ được lưu trong
-`backend/map_data.json` và đồng bộ qua topic `building/config`.
+`backend/map_data.json` và đồng bộ tự động qua topic `building/config`.
 
 ## D\* Lite và trọng số
 
@@ -80,6 +82,34 @@ chmod +x start.sh
 nạp `.env`, ghi log riêng vào `logs/`, hiển thị PID/URL và dừng toàn bộ tiến
 trình con khi nhấn `Ctrl+C`. Đặt `WIEVAC_SIMULATOR=0` nếu thay simulator bằng
 thiết bị thật.
+
+## Hướng dẫn kết nối và kiểm thử Loa phần cứng (ESP32 Node 1)
+
+1. **Phát Wi-Fi từ máy tính**:
+   - Mở Windows Mobile Hotspot (Điểm phát sóng di động).
+   - Tên mạng (SSID): `WiEvac_Pi5`
+   - Mật khẩu: `12345678`
+   - Băng tần: **2.4 GHz** (Bắt buộc vì ESP32 chỉ hỗ trợ 2.4 GHz).
+2. **Cấp nguồn cho mạch ESP32 Node 1 (Receiver)**:
+   - Mạch tự động kết nối vào mạng `WiEvac_Pi5` và nhận địa chỉ IP (dải `192.168.137.x`).
+   - Mạch mở cổng lắng nghe gói nhị phân Downlink UDP tại cổng **8889**.
+3. **Khởi động hệ thống**:
+   ```powershell
+   .\start.bat
+   ```
+   Lệnh này tự động kích hoạt cả Backend (3001), MQTT (1884), Edge Core D* Lite, Downlink Bridge UDP và Frontend (5173).
+4. **Cấu hình và điều khiển trên Dashboard (`http://127.0.0.1:5173`)**:
+   - Vào chế độ **Thiết kế** $\to$ Click vào một hành lang $\to$ Tại mục **Node Loa điều hướng**, bấm **`+ Thêm Node Loa`**.
+   - Chọn Node phần cứng: `Node #1 (Loa/RX)`.
+   - Chọn vị trí lắp đặt: `📍 Đầu`, `📍 Ở giữa`, hoặc `📍 Cuối`. Bấm **Lưu sơ đồ**.
+   - Chuyển sang chế độ **Giám sát** $\to$ Bấm **Chạy mô phỏng**.
+5. **Bản tin âm thanh phát ra từ Loa (DFPlayer Mini)**:
+   - **Đám đông di tản qua hành lang**: Phát Track 3 (`0003.mp3` - `Cmd=11`): *"Đi thẳng theo hướng này"*.
+   - **Hành lang bị phong tỏa / Báo cháy ($H=100$)**: Phát Track 4 (`0004.mp3` - `Cmd=14`): *"Chú ý, quay lại"*.
+   - **Khu vực bị cô lập không còn đường thoát**: Phát Track 5 (`0005.mp3` - `Cmd=17`): *"Không có lối thoát an toàn, đóng cửa và trú ẩn khẩn cấp"*.
+   - **Hành lang tiếp giáp trực tiếp cửa thoát hiểm**: Phát Track 6 (`0006.mp3` - `Cmd=16`): *"Bạn đã đến cửa thoát hiểm an toàn"*.
+   - **Dừng mô phỏng / Kết thúc sự cố**: Loa tắt âm thanh (`Cmd=19 / CLEAR`).
+
 
 ## Dữ liệu CSI thật
 

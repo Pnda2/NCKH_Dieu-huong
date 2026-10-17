@@ -853,7 +853,7 @@ function App() {
                 {criticalCount > 0 && (
                   <span className="text-rose-400 font-semibold flex items-center gap-1.5 bg-rose-500/10 border border-rose-500/20 px-2.5 py-1 rounded-md">
                     <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
-                    <span>{criticalCount} HL KÉM THÔNG THOÁNG (≥80%)</span>
+                    <span>{criticalCount} HL KÉM THÔNG THOÁNG ≥80%</span>
                   </span>
                 )}
               </div>
@@ -1096,7 +1096,7 @@ function App() {
                     onClick={() => setShowChaosHelp(prev => !prev)}
                     className="text-cyan-400 hover:text-cyan-300 text-xs font-mono cursor-pointer transition-colors"
                   >
-                    {showChaosHelp ? '[ Thu gọn ]' : '[ Hướng dẫn ]'}
+                    {showChaosHelp ? 'Thu gọn' : 'Hướng dẫn'}
                   </button>
                 </div>
                 <div className="space-y-1">
@@ -1277,7 +1277,7 @@ function App() {
                             className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/40 transition-colors cursor-pointer"
                           >
                             <span className="font-mono text-xs text-slate-300 tracking-wider">
-                              {showCorridorDetails ? '▼ THÔNG SỐ CHI TIẾT' : '▶ THÔNG SỐ CHI TIẾT'}
+                              THÔNG SỐ CHI TIẾT
                             </span>
                             <span className="text-[10px] text-slate-400 font-mono">
                               {showCorridorDetails ? 'Thu gọn' : 'Mở rộng'}
@@ -1326,7 +1326,7 @@ function App() {
                               </div>
                               <div className="flex justify-between py-0.5 border-b border-slate-900">
                                 <span className="text-slate-400">Thông thoáng còn lại</span>
-                                <span className="text-emerald-400">{receivingCapacity.toFixed(2)} m ({Math.round(Math.max(0, 1 - ratio) * 100)}%)</span>
+                                <span className="text-emerald-400">{receivingCapacity.toFixed(2)} m · {Math.round(Math.max(0, 1 - ratio) * 100)}%</span>
                               </div>
                               <div className="flex justify-between py-0.5 border-b border-slate-900">
                                 <span className="text-slate-400">Tốc độ xả lưu lượng</span>
@@ -1340,11 +1340,11 @@ function App() {
                                 <span className="text-slate-400">Ưu tiên điều hướng</span>
                                 <span>
                                   {isBlocked ? (
-                                    <span className="text-rose-400 font-bold">[PHONG TỎA]</span>
+                                    <span className="text-rose-400 font-bold">PHONG TỎA</span>
                                   ) : weightVal !== undefined && weightVal !== 'Bị chặn' && Number(weightVal) < 15 ? (
-                                    <span className="text-emerald-400 font-bold">[ƯU TIÊN CAO]</span>
+                                    <span className="text-emerald-400 font-bold">ƯU TIÊN CAO</span>
                                   ) : (
-                                    <span className="text-amber-400 font-bold">[THỨ CẤP]</span>
+                                    <span className="text-amber-400 font-bold">THỨ CẤP</span>
                                   )}
                                 </span>
                               </div>
@@ -1355,7 +1355,7 @@ function App() {
                                 const valueAt = (seconds) => Math.round((forecast.median?.[seconds - 1] ?? 0) * 100);
                                 return (
                                   <div className="pt-2">
-                                    <div className="text-xs uppercase font-bold text-slate-400 mb-1 tracking-wider">Dự báo thông thoáng (60s tới)</div>
+                                    <div className="text-xs uppercase font-bold text-slate-400 mb-1 tracking-wider">Dự báo thông thoáng trong 60s</div>
                                     <div className="grid grid-cols-3 gap-1.5 text-center">
                                       <div className="bg-slate-900/90 rounded-lg p-1.5 border border-slate-800">
                                         <div className="text-[10px] text-slate-500">15s</div>
@@ -1421,7 +1421,7 @@ function App() {
                                 className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-300 text-xs font-mono truncate border border-slate-800 text-center cursor-pointer transition-colors"
                                 title={`Xem bảng hiệu tại ${areaA.name}`}
                               >
-                                📍 {areaA.name}
+                                {areaA.name}
                               </button>
                             )}
                             {areaB && (
@@ -1431,7 +1431,7 @@ function App() {
                                 className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-300 text-xs font-mono truncate border border-slate-800 text-center cursor-pointer transition-colors"
                                 title={`Xem bảng hiệu tại ${areaB.name}`}
                               >
-                                📍 {areaB.name}
+                                {areaB.name}
                               </button>
                             )}
                           </div>
@@ -1451,7 +1451,7 @@ function App() {
                             ) : (
                               <svg className="w-4 h-4 stroke-current fill-none stroke-2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                             )}
-                            <span>{isBlocked ? 'Khôi phục lưu thông hành lang' : 'Phong tỏa hành lang (Báo cháy / Sự cố)'}</span>
+                            <span>{isBlocked ? 'Khôi phục lưu thông hành lang' : 'Phong tỏa hành lang do báo cháy hoặc sự cố'}</span>
                           </button>
                           <p className="text-[10px] text-slate-500 mt-1.5 text-center font-mono">
                             {isBlocked
@@ -1521,7 +1521,7 @@ function App() {
                             return (
                               <div key={device.id} className="bg-slate-950/60 rounded-lg p-2 text-xs font-mono border border-slate-800/80">
                                 <div className="flex justify-between items-center">
-                                  <span className="text-white font-medium">[{device.type === 'sign' ? 'SIGN' : 'SPEAKER'}] {device.name}</span>
+                                  <span className="text-white font-medium">{device.type === 'sign' ? 'BẢNG LED' : 'LOA'}: {device.name}</span>
                                   <span className={`text-[10px] uppercase font-bold ${statusColor}`}>{live?.status || 'idle'}</span>
                                 </div>
                                 {live?.last_command && (
@@ -1540,7 +1540,7 @@ function App() {
                               onClick={() => setMode('edit')}
                               className="px-2.5 py-1 text-xs font-mono bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-medium transition-colors cursor-pointer shadow-sm"
                             >
-                              + Thêm thiết bị
+                              Thêm thiết bị
                             </button>
                           </div>
                           <p className="text-xs text-slate-500 font-mono">
@@ -1577,7 +1577,7 @@ function App() {
                               ) : (
                                 <svg className="w-4 h-4 stroke-current fill-none stroke-2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                               )}
-                              <span>{isBlocked ? 'Khôi phục lối thoát này' : 'Phong tỏa lối thoát này (Có khói/lửa)'}</span>
+                              <span>{isBlocked ? 'Khôi phục lối thoát này' : 'Phong tỏa lối thoát này khi có khói hoặc lửa'}</span>
                             </button>
                           </div>
                         );
@@ -1693,7 +1693,7 @@ function App() {
                             }`}>
                             <div className="flex justify-between items-center mb-1">
                               <span className={`font-bold ${log.type === 'alert' ? 'text-rose-400' : 'text-cyan-400'}`}>
-                                {log.type === 'alert' ? '[CẢNH BÁO]' : '[ĐIỀU HƯỚNG]'}
+                                {log.type === 'alert' ? 'CẢNH BÁO' : 'ĐIỀU HƯỚNG'}
                               </span>
                               <span className="text-slate-500 text-[10px]">{log.time}</span>
                             </div>

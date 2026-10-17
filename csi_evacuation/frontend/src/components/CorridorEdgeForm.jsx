@@ -120,13 +120,10 @@ export default function CorridorEdgeForm({
             <button
               type="button"
               onClick={() => setShowDeleteConfirm(true)}
-              className="px-2 py-1 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 border border-rose-500/30 rounded-lg transition-colors flex items-center gap-1 flex-shrink-0"
+              className="px-2.5 py-1 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 border border-rose-500/30 rounded-lg transition-colors flex-shrink-0"
               title="Xóa hành lang"
             >
-              <svg className="w-3.5 h-3.5 stroke-current fill-none stroke-2" viewBox="0 0 24 24">
-                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              </svg>
-              <span>Xóa</span>
+              Xóa
             </button>
           )}
         </div>
@@ -163,26 +160,24 @@ export default function CorridorEdgeForm({
         <button
           type="button"
           onClick={() => setActiveTab('basic')}
-          className={`flex-1 py-1 rounded-md font-medium text-xs transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-1 rounded-md font-medium text-xs transition-all flex items-center justify-center ${
             activeTab === 'basic'
               ? 'bg-slate-800 text-cyan-400 font-semibold border border-cyan-500/30 shadow-sm'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <span>⚡</span>
-          <span>Cơ bản & Thiết bị IoT</span>
+          Cơ bản
         </button>
         <button
           type="button"
           onClick={() => setActiveTab('advanced')}
-          className={`flex-1 py-1 rounded-md font-medium text-xs transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-1 rounded-md font-medium text-xs transition-all flex items-center justify-center ${
             activeTab === 'advanced'
               ? 'bg-slate-800 text-cyan-400 font-semibold border border-cyan-500/30 shadow-sm'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <span>⚙️</span>
-          <span>Vận hành & D* Lite</span>
+          Nâng cao
         </button>
       </div>
 
@@ -229,7 +224,7 @@ export default function CorridorEdgeForm({
           {/* 3.2 Tên hành lang */}
           <div className="space-y-1">
             <label className="block text-slate-300 text-xs font-semibold">
-              Tên gọi hành lang (Tùy chọn)
+              Tên gọi hành lang
             </label>
             <input
               type="text"
@@ -277,7 +272,7 @@ export default function CorridorEdgeForm({
               </div>
             </div>
             <p className="text-[10px] text-slate-500 leading-snug">
-              💡 Hệ thống sẽ tự động ước tính sức chứa ({capacityPeople} người) và vận tốc dòng người dựa trên kích thước này.
+              Hệ thống tự động ước tính sức chứa {capacityPeople} người và vận tốc dòng người dựa trên kích thước này.
             </p>
           </div>
 
@@ -286,7 +281,7 @@ export default function CorridorEdgeForm({
             <div className="flex items-center justify-between">
               <div className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
                 <span className={`w-2 h-2 rounded-full ${csiLinkId ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
-                <span>Cảm biến sóng WiFi (CSI)</span>
+                <span>Cảm biến sóng WiFi CSI</span>
               </div>
               <span className="text-[10px] text-emerald-400 font-mono font-semibold">ESP32-S3</span>
             </div>
@@ -296,9 +291,9 @@ export default function CorridorEdgeForm({
             <div className="grid grid-cols-2 gap-1.5 pt-0.5">
               {[
                 { id: '', label: 'Chưa gắn cảm biến' },
-                { id: 'link-1', label: 'Cặp #1 (link-1)' },
-                { id: 'link-2', label: 'Cặp #2 (link-2)' },
-                { id: 'link-3', label: 'Cặp #3 (link-3)' },
+                { id: 'link-1', label: 'Cặp link-1' },
+                { id: 'link-2', label: 'Cặp link-2' },
+                { id: 'link-3', label: 'Cặp link-3' },
               ].map(item => {
                 const isSelected = item.id === '' ? !csiLinkId : csiLinkId.split(',').map(s => s.trim()).includes(item.id);
                 return (
@@ -315,15 +310,14 @@ export default function CorridorEdgeForm({
                         : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
                     }`}
                   >
-                    {isSelected ? '✓ ' : ''}{item.label}
+                    {item.label}
                   </button>
                 );
               })}
             </div>
             {csiLinkId && (
-              <div className="text-[10px] text-emerald-400 font-mono bg-emerald-950/40 border border-emerald-800/40 rounded-lg p-2 flex items-center gap-1.5">
-                <span>✓</span>
-                <span>Đang kết nối luồng cảm biến <strong>[{csiLinkId}]</strong> từ Raspberry Pi.</span>
+              <div className="text-[10px] text-emerald-400 font-mono bg-emerald-950/40 border border-emerald-800/40 rounded-lg p-2">
+                Đang kết nối luồng cảm biến {csiLinkId} từ Raspberry Pi.
               </div>
             )}
           </div>
@@ -331,12 +325,8 @@ export default function CorridorEdgeForm({
           {/* 3.5 Loa phát thanh điều hướng */}
           <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2.5">
             <div className="flex items-center justify-between">
-              <div className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
-                <svg className="w-4 h-4 text-violet-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" />
-                </svg>
-                <span>Loa phát âm thanh điều hướng ({corridorDevices.length})</span>
+              <div className="text-xs font-semibold text-slate-200">
+                Loa phát âm thanh điều hướng
               </div>
               <button
                 type="button"
@@ -356,13 +346,13 @@ export default function CorridorEdgeForm({
                 }}
                 className="px-2.5 py-1 text-xs rounded-lg bg-violet-600 hover:bg-violet-500 text-white font-semibold transition-all shadow-sm flex items-center gap-1 cursor-pointer"
               >
-                <span>+ Thêm Loa</span>
+                Thêm loa
               </button>
             </div>
 
             {corridorDevices.length === 0 ? (
               <p className="text-[11px] text-slate-500 italic">
-                Hành lang chưa gắn loa. Nhấn nút <strong>"+ Thêm Loa"</strong> nếu bạn có lắp đặt node loa ESP32 tại đây.
+                Hành lang chưa gắn loa. Nhấn nút <strong>Thêm loa</strong> nếu có lắp đặt node loa ESP32 tại đây.
               </p>
             ) : (
               <div className="space-y-2">
@@ -376,7 +366,7 @@ export default function CorridorEdgeForm({
                         <div className="flex items-center gap-2 flex-1 min-w-0">
                           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isOnline ? 'bg-emerald-400' : 'bg-slate-600'}`} />
                           <span className="text-xs font-bold text-white truncate">
-                            {dev.name || `Node Loa #${dev.node_id || 1}`}
+                            {dev.name || `Node Loa ${dev.node_id || 1}`}
                           </span>
                         </div>
                         <span className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full border ${
@@ -387,10 +377,10 @@ export default function CorridorEdgeForm({
                         <button
                           type="button"
                           onClick={() => onDeleteDevice?.(dev.id)}
-                          className="text-slate-500 hover:text-rose-400 text-xs p-1"
+                          className="text-slate-500 hover:text-rose-400 text-xs px-1.5 py-0.5 rounded hover:bg-rose-500/10 transition-colors"
                           title="Gỡ bỏ loa này khỏi hành lang"
                         >
-                          ✕
+                          Xóa
                         </button>
                       </div>
 
@@ -403,25 +393,25 @@ export default function CorridorEdgeForm({
                           value={dev.placement || 'middle'}
                           onChange={e => {
                             const pl = e.target.value;
-                            const posName = pl === 'near_a' ? `Đầu ${areaA?.name || 'A'}` : pl === 'near_b' ? `Đầu ${areaB?.name || 'B'}` : 'Ở giữa HL';
+                            const posName = pl === 'near_a' ? `Đầu ${areaA?.name || 'A'}` : pl === 'near_b' ? `Đầu ${areaB?.name || 'B'}` : 'Giữa HL';
                             onUpdateDevice?.({
                               ...dev,
                               placement: pl,
-                              name: `Node ${dev.node_id || 1} - Loa (${posName})`,
+                              name: `Node ${dev.node_id || 1} - Loa ${posName}`,
                             });
                           }}
                           className="w-full bg-slate-950 text-cyan-300 font-semibold rounded-lg px-2.5 py-1.5 border border-slate-700 focus:outline-none text-xs cursor-pointer"
                         >
-                          <option value="near_a">📍 Đầu phía {areaA?.name || 'Điểm A'}</option>
-                          <option value="middle">📍 Ở đoạn giữa hành lang</option>
-                          <option value="near_b">📍 Đầu phía {areaB?.name || 'Điểm B'}</option>
+                          <option value="near_a">Đầu phía {areaA?.name || 'Điểm A'}</option>
+                          <option value="middle">Đoạn giữa hành lang</option>
+                          <option value="near_b">Đầu phía {areaB?.name || 'Điểm B'}</option>
                         </select>
                       </div>
 
                       {live?.last_command && (
                         <div className="text-[11px] font-mono text-cyan-300 bg-cyan-950/40 border border-cyan-800/40 rounded-lg p-2 flex items-center justify-between">
                           <span>Bản tin gần nhất: <strong>{live.last_command.command}</strong></span>
-                          <span className="text-slate-500 text-[10px]">seq #{live.last_command.sequence}</span>
+                          <span className="text-slate-500 text-[10px]">seq {live.last_command.sequence}</span>
                         </div>
                       )}
                     </div>
@@ -436,10 +426,10 @@ export default function CorridorEdgeForm({
       {/* ── 4. Tab NÂNG CAO (D* Lite & Tham số vận hành) ── */}
       {activeTab === 'advanced' && (
         <div className="space-y-3.5">
-          {/* Sức chứa tối đa Cmax */}
+          {/* Sức chứa tối đa */}
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-slate-300">
-              Sức chứa tối đa (Cmax)
+              Sức chứa tối đa
             </label>
             <div className="flex items-center gap-2">
               <input
@@ -490,11 +480,11 @@ export default function CorridorEdgeForm({
             </div>
           </div>
 
-          {/* Độ lấp đầy ban đầu k(e) */}
+          {/* Độ lấp đầy ban đầu */}
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-slate-300">
-                Độ lấp đầy ban đầu k(e)
+                Độ lấp đầy ban đầu
               </label>
               <span className="text-xs font-mono font-bold text-cyan-400">
                 {Math.round(initialOccupancy * 100)}%
@@ -533,7 +523,7 @@ export default function CorridorEdgeForm({
                   onClick={() => onSelectArea?.(areaA)}
                   className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-cyan-300 text-xs font-mono text-center cursor-pointer transition-colors"
                 >
-                  📍 Đầu: {areaA.name}
+                  Đầu {areaA.name}
                 </button>
               )}
               {areaB && (
@@ -542,7 +532,7 @@ export default function CorridorEdgeForm({
                   onClick={() => onSelectArea?.(areaB)}
                   className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-cyan-300 text-xs font-mono text-center cursor-pointer transition-colors"
                 >
-                  📍 Đầu: {areaB.name}
+                  Đầu {areaB.name}
                 </button>
               )}
             </div>
@@ -551,16 +541,15 @@ export default function CorridorEdgeForm({
           {/* Cảnh báo cấu hình */}
           {hasWarnings && (
             <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-3 text-xs space-y-1">
-              <div className="font-bold text-amber-300 flex items-center gap-1.5">
-                <span>⚠</span>
-                <span>Lưu ý tham số:</span>
+              <div className="font-bold text-amber-300">
+                Lưu ý tham số:
               </div>
               <ul className="text-[11px] text-amber-200/80 space-y-0.5 pl-1">
                 {corridor.lengthEstimated && (
-                  <li>• Chiều dài đang dùng số đo mặc định ({length}m).</li>
+                  <li>• Chiều dài đang dùng số đo mặc định: {length} m.</li>
                 )}
                 {corridor.widthEstimated && (
-                  <li>• Chiều rộng đang dùng số đo mặc định ({widthMeters}m).</li>
+                  <li>• Chiều rộng đang dùng số đo mặc định: {widthMeters} m.</li>
                 )}
                 {capacityPeople <= 0 && (
                   <li className="text-rose-300">• Sức chứa ≤ 0: hành lang sẽ bị loại khỏi tuyến dẫn đường.</li>
@@ -580,7 +569,7 @@ export default function CorridorEdgeForm({
             </div>
             <div className="flex justify-between text-slate-400 text-[11px]">
               <span>Thời gian gốc t₀:</span>
-              <span className="text-slate-200">{(length / 1.2).toFixed(2)}s (v = 1.2 m/s)</span>
+              <span className="text-slate-200">{(length / 1.2).toFixed(2)}s với vận tốc 1.2 m/s</span>
             </div>
             <div className="flex justify-between text-slate-400 text-[11px]">
               <span>Bề rộng khả dụng R(e):</span>

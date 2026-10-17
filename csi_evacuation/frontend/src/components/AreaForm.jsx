@@ -7,12 +7,6 @@ const TYPE_OPTIONS = [
     label: 'Phòng / Khu vực',
     desc: 'Phòng làm việc, phòng học hoặc sảnh sinh hoạt cần thoát nạn',
     badge: 'ROOM',
-    icon: (
-      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <rect x="3" y="3" width="18" height="18" rx="1" />
-        <path d="M9 3v18M3 15h6" />
-      </svg>
-    ),
     active: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/40 shadow-sm shadow-cyan-950',
     inactive: 'bg-slate-900/60 text-slate-300 hover:bg-slate-800/60 border-slate-800/80',
   },
@@ -21,11 +15,6 @@ const TYPE_OPTIONS = [
     label: 'Cầu thang bộ',
     desc: 'Lối thang bộ di chuyển lên/xuống giữa các tầng nhà',
     badge: 'STAIR',
-    icon: (
-      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M19 5v4h-4v4h-4v4H7v4H3" />
-      </svg>
-    ),
     active: 'bg-amber-500/10 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-950',
     inactive: 'bg-slate-900/60 text-slate-300 hover:bg-slate-800/60 border-slate-800/80',
   },
@@ -34,11 +23,6 @@ const TYPE_OPTIONS = [
     label: 'Lối thoát hiểm an toàn',
     desc: 'Cửa dẫn trực tiếp ra nơi an toàn bên ngoài tòa nhà',
     badge: 'EXIT',
-    icon: (
-      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3" />
-      </svg>
-    ),
     active: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/40 shadow-sm shadow-emerald-950',
     inactive: 'bg-slate-900/60 text-slate-300 hover:bg-slate-800/60 border-slate-800/80',
   },
@@ -129,18 +113,15 @@ export default function AreaForm({
             </span>
           </div>
           <div className="text-[11px] text-slate-400 mt-0.5">
-            {area.type === 'exit' ? '🚪 Cửa thoát nạn an toàn' : area.type === 'stairs' ? '🪜 Cầu thang chuyển tầng' : '🏠 Không gian / Phòng'}
+            {area.type === 'exit' ? 'Cửa thoát nạn an toàn' : area.type === 'stairs' ? 'Cầu thang chuyển tầng' : 'Không gian / Phòng'}
           </div>
         </div>
         <button
           onClick={onDelete}
-          className="text-rose-400 hover:text-rose-300 text-xs font-semibold px-2 py-1 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-lg transition-colors flex items-center gap-1.5 flex-shrink-0"
+          className="text-rose-400 hover:text-rose-300 text-xs font-semibold px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-lg transition-colors flex-shrink-0"
           title="Xóa khu vực này"
         >
-          <svg className="w-3.5 h-3.5 stroke-current fill-none stroke-2" viewBox="0 0 24 24">
-            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-          </svg>
-          <span>Xóa</span>
+          Xóa
         </button>
       </div>
 
@@ -149,26 +130,24 @@ export default function AreaForm({
         <button
           type="button"
           onClick={() => setActiveTab('basic')}
-          className={`flex-1 py-1 rounded-md font-medium text-xs transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-1 rounded-md font-medium text-xs transition-all flex items-center justify-center ${
             activeTab === 'basic'
               ? 'bg-slate-800 text-cyan-400 font-semibold border border-cyan-500/30 shadow-sm'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <span>⚡</span>
-          <span>Cơ bản (Khuyên dùng)</span>
+          Cơ bản
         </button>
         <button
           type="button"
           onClick={() => setActiveTab('advanced')}
-          className={`flex-1 py-1 rounded-md font-medium text-xs transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-1 rounded-md font-medium text-xs transition-all flex items-center justify-center ${
             activeTab === 'advanced'
               ? 'bg-slate-800 text-cyan-400 font-semibold border border-cyan-500/30 shadow-sm'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <span>⚙️</span>
-          <span>Nâng cao (3D & Tọa độ)</span>
+          Nâng cao
         </button>
       </div>
 
@@ -203,22 +182,19 @@ export default function AreaForm({
                   key={o.value}
                   type="button"
                   onClick={() => handleTypeChange(o.value)}
-                  className={`w-full flex items-start gap-3 p-2.5 rounded-xl border text-left transition-all ${
+                  className={`w-full p-2.5 rounded-xl border text-left transition-all ${
                     area.type === o.value ? o.active : o.inactive
                   }`}
                 >
-                  <span className="mt-0.5 text-slate-300 flex-shrink-0">{o.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-white">{o.label}</span>
-                      {area.type === o.value && (
-                        <span className="text-xs font-bold text-cyan-400">✓ Đang chọn</span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
-                      {o.desc}
-                    </p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white">{o.label}</span>
+                    {area.type === o.value && (
+                      <span className="text-xs font-bold text-cyan-400">Đang chọn</span>
+                    )}
                   </div>
+                  <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                    {o.desc}
+                  </p>
                 </button>
               ))}
             </div>
@@ -236,7 +212,7 @@ export default function AreaForm({
               <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-center space-y-1.5">
                 <p className="text-xs text-amber-300 font-medium">Chưa có hành lang nào nối vào phòng này</p>
                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                  👉 <strong>Cách tạo đường đi:</strong> Bấm chọn công cụ <strong>"+ Hành lang"</strong> trên thanh trên cùng, nhấp vào phòng này rồi nhấp sang phòng cần nối.
+                  Cách tạo đường đi: Chọn công cụ <strong>+ Hành lang</strong> trên thanh công cụ, nhấp vào phòng này rồi nhấp sang phòng cần nối.
                 </p>
               </div>
             ) : (
@@ -250,7 +226,7 @@ export default function AreaForm({
                       className="flex items-center justify-between bg-slate-950/60 border border-slate-800/80 px-2.5 py-1.5 rounded-lg text-xs"
                     >
                       <span className="truncate text-slate-300">
-                        ⇄ Nối với <strong>{otherArea?.name || otherId}</strong>
+                        Nối với <strong>{otherArea?.name || otherId}</strong>
                       </span>
                       <span className="text-[10px] font-mono text-slate-400 ml-2">
                         {c.length || 10}m
@@ -309,7 +285,7 @@ export default function AreaForm({
               onClick={() => handleVisualKindChange('junction')}
               className="w-full rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-2.5 text-left text-xs text-cyan-200 hover:bg-cyan-900/30 transition-colors"
             >
-              💡 Gợi ý: Nút này có {sameFloorCorridors.length} hành lang kết nối. Nhấp vào đây để đổi sang kiểu nút giao giúp các nhánh nối thẩm mỹ hơn.
+              Gợi ý: Nút này có {sameFloorCorridors.length} hành lang kết nối. Nhấp vào đây để đổi sang kiểu nút giao giúp các nhánh nối thẩm mỹ hơn.
             </button>
           )}
 
@@ -325,7 +301,7 @@ export default function AreaForm({
             </div>
             <div className="grid grid-cols-2 gap-2 font-mono">
               <label className="text-xs text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-800">
-                <span className="block text-[10px] text-slate-500 mb-0.5">RỘNG (MÉT)</span>
+                <span className="block text-[10px] text-slate-500 mb-0.5">Chiều rộng, m</span>
                 <input
                   type="number"
                   min="0.5"
@@ -336,7 +312,7 @@ export default function AreaForm({
                 />
               </label>
               <label className="text-xs text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-800">
-                <span className="block text-[10px] text-slate-500 mb-0.5">SÂU (MÉT)</span>
+                <span className="block text-[10px] text-slate-500 mb-0.5">Chiều sâu, m</span>
                 <input
                   type="number"
                   min="0.5"
@@ -347,7 +323,7 @@ export default function AreaForm({
                 />
               </label>
               <label className="text-xs text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-800">
-                <span className="block text-[10px] text-slate-500 mb-0.5">CAO (MÉT)</span>
+                <span className="block text-[10px] text-slate-500 mb-0.5">Chiều cao, m</span>
                 <input
                   type="number"
                   min="0.5"
@@ -358,7 +334,7 @@ export default function AreaForm({
                 />
               </label>
               <label className="text-xs text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-800">
-                <span className="block text-[10px] text-slate-500 mb-0.5">XOAY (ĐỘ)</span>
+                <span className="block text-[10px] text-slate-500 mb-0.5">Góc xoay, độ</span>
                 <input
                   type="number"
                   step="15"
@@ -396,7 +372,7 @@ export default function AreaForm({
                   onChange={(event) => onUpdateLanding?.(stairwell.id, area.id, event.target.value)}
                   className="mt-1 w-full rounded-lg border border-amber-400/40 bg-slate-900 px-2.5 py-1.5 text-xs text-white focus:outline-none"
                 >
-                  <option value="auto">Tự động (tính từ hướng hành lang nối)</option>
+                  <option value="auto">Tự động theo hướng hành lang nối</option>
                   <option value="front">Mặt trước</option>
                   <option value="right">Mặt phải</option>
                   <option value="back">Mặt sau</option>
@@ -410,7 +386,7 @@ export default function AreaForm({
           {allAreas && (
             <div className="pt-2 border-t border-slate-800 space-y-1.5">
               <label className="block text-slate-400 text-[11px] uppercase font-bold tracking-wider font-mono">
-                Bật/Tắt liên kết hành lang thủ công ({availableConnections.length})
+                Liên kết hành lang thủ công
               </label>
               <div className="space-y-1 max-h-36 overflow-y-auto bg-slate-950/60 p-2 rounded-xl border border-slate-800">
                 {availableConnections.map(c => {
@@ -447,7 +423,7 @@ export default function AreaForm({
           {/* Thông tin kỹ thuật & Tọa độ */}
           <div className="pt-2 border-t border-slate-800 text-[10px] font-mono text-slate-500 flex justify-between">
             <span>NODE ID: {area.id}</span>
-            <span>TỌA ĐỘ: ({Math.round(area.x)}, {Math.round(area.y)})</span>
+            <span>TỌA ĐỘ: {Math.round(area.x)}, {Math.round(area.y)}</span>
           </div>
         </div>
       )}

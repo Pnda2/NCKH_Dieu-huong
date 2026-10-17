@@ -1,12 +1,12 @@
 import React from 'react';
 
 const DIRECTIONS = [
-  ['LEFT', '← Trái (LEFT)'],
-  ['RIGHT', '→ Phải (RIGHT)'],
-  ['STRAIGHT', '↑ Thẳng (STRAIGHT)'],
-  ['BACK', '↓ Quay lại (BACK)'],
-  ['UP', '▲ Lên tầng (UP)'],
-  ['DOWN', '▼ Xuống tầng (DOWN)'],
+  ['LEFT', 'Rẽ trái'],
+  ['RIGHT', 'Rẽ phải'],
+  ['STRAIGHT', 'Đi thẳng'],
+  ['BACK', 'Quay lại'],
+  ['UP', 'Lên tầng'],
+  ['DOWN', 'Xuống tầng'],
 ];
 
 const STATUS_STYLE = {
@@ -43,7 +43,7 @@ export default function DeviceRegistryForm({
       <div className="flex items-center justify-between">
         <div>
           <div className="text-white text-xs font-bold uppercase tracking-wider">
-            Thiết bị gắn tại phòng ({areaDevices.length})
+            Thiết bị gắn tại phòng
           </div>
           <p className="text-[10px] text-slate-400 mt-0.5">
             Bảng LED và Loa chỉ hướng đặt ngay tại vị trí này
@@ -53,16 +53,16 @@ export default function DeviceRegistryForm({
           <button
             type="button"
             onClick={() => onAdd('sign', area.id)}
-            className="px-2 py-1 text-xs rounded-lg bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/40 text-cyan-300 transition-colors flex items-center gap-1 font-mono font-semibold cursor-pointer shadow-sm"
+            className="px-2.5 py-1 text-xs rounded-lg bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/40 text-cyan-300 transition-colors font-mono font-semibold cursor-pointer shadow-sm"
           >
-            + BẢNG LED
+            Thêm Bảng LED
           </button>
           <button
             type="button"
             onClick={() => onAdd('speaker', area.id)}
-            className="px-2 py-1 text-xs rounded-lg bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/40 text-violet-300 transition-colors flex items-center gap-1 font-mono font-semibold cursor-pointer shadow-sm"
+            className="px-2.5 py-1 text-xs rounded-lg bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/40 text-violet-300 transition-colors font-mono font-semibold cursor-pointer shadow-sm"
           >
-            + LOA
+            Thêm Loa
           </button>
         </div>
       </div>
@@ -73,7 +73,7 @@ export default function DeviceRegistryForm({
             Chưa gán thiết bị nào tại đây.
           </p>
           <p className="text-[11px] text-slate-500 mt-1">
-            (Tùy chọn: chỉ thêm nếu bạn có lắp đặt Bảng hiệu LED hoặc Loa thông minh thực tế tại phòng này)
+            Chỉ thêm nếu có lắp đặt Bảng hiệu LED hoặc Loa thông minh thực tế tại phòng này.
           </p>
         </div>
       )}
@@ -84,22 +84,9 @@ export default function DeviceRegistryForm({
         return (
           <div key={device.id} className="bg-slate-950/70 rounded-xl p-3 space-y-2.5 border border-slate-800 shadow-sm">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5">
-                {device.type === 'sign' ? (
-                  <svg className="w-4 h-4 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="3" width="18" height="18" rx="2" />
-                    <path d="M8 12h8M12 8l4 4-4 4" />
-                  </svg>
-                ) : (
-                  <svg className="w-4 h-4 text-violet-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" />
-                  </svg>
-                )}
-                <span className="font-mono text-[10px] uppercase font-bold text-slate-300">
-                  {device.type === 'sign' ? 'BẢNG LED' : 'LOA'}
-                </span>
-              </div>
+              <span className="font-mono text-[10px] uppercase font-bold text-slate-300 px-1.5 py-0.5 bg-slate-900 border border-slate-800 rounded">
+                {device.type === 'sign' ? 'BẢNG LED' : 'LOA'}
+              </span>
               <input
                 value={device.name || ''}
                 onChange={event => onUpdate({ ...device, name: event.target.value })}
@@ -111,10 +98,10 @@ export default function DeviceRegistryForm({
               </span>
               <button
                 onClick={() => onDelete(device.id)}
-                className="text-slate-500 hover:text-rose-400 text-xs p-1"
+                className="text-slate-500 hover:text-rose-400 text-xs px-1.5 py-0.5 rounded hover:bg-rose-500/10 transition-colors"
                 title="Xóa thiết bị"
               >
-                ✕
+                Xóa
               </button>
             </div>
 
@@ -156,12 +143,12 @@ export default function DeviceRegistryForm({
             {/* Cài đặt kỹ thuật (Thu gọn để tránh rối mắt người mới) */}
             <details className="pt-1.5 border-t border-slate-800/80 group">
               <summary className="text-[10px] text-slate-500 hover:text-slate-300 cursor-pointer flex items-center justify-between select-none py-0.5 font-mono">
-                <span>⚙️ Cài đặt kỹ thuật (Góc & MQTT Topic)</span>
+                <span>Cài đặt kỹ thuật: Góc chuẩn và MQTT Topic</span>
                 <span className="text-[9px] group-open:rotate-90 transition-transform">▶</span>
               </summary>
               <div className="mt-2 grid grid-cols-2 gap-2 pt-1 font-mono text-[10px]">
                 <label className="text-slate-400">
-                  GÓC CHUẨN (0° = BẮC)
+                  Góc chuẩn: 0° Bắc
                   <input
                     type="number"
                     min="0"

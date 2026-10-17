@@ -742,7 +742,7 @@ function App() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* ─── Canvas Area ─── */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-slate-950">
+        <div className="flex-1 flex flex-col overflow-hidden bg-slate-100">
 
           {/* Floor Toolbar */}
           <div className="bg-slate-950/90 border-b border-slate-800/80 px-3.5 py-2 flex items-center justify-between flex-shrink-0 z-10">
@@ -863,11 +863,11 @@ function App() {
           {/* Canvas */}
           <div className="flex-1 relative overflow-hidden">
             {mapLoadState === 'loading' ? (
-              <div className="h-full grid place-items-center bg-slate-950 text-slate-300"><div className="text-center"><div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" /><p className="font-semibold">Đang tải sơ đồ vận hành…</p><p className="mt-1 text-sm text-slate-500">Đồng bộ cấu hình từ backend</p></div></div>
+              <div className="h-full grid place-items-center bg-slate-100 text-slate-700"><div className="text-center"><div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent" /><p className="font-semibold">Đang tải sơ đồ vận hành…</p><p className="mt-1 text-sm text-slate-500">Đồng bộ cấu hình từ backend</p></div></div>
             ) : mapLoadState === 'error' ? (
-              <div className="h-full grid place-items-center bg-slate-950 px-6 text-center text-slate-300"><div><p className="text-lg font-semibold text-red-300">Không thể kết nối backend</p><p className="mt-2 max-w-md text-sm text-slate-400">Dashboard vẫn hiển thị khi máy chủ sẵn sàng. Kiểm tra VITE_WIEVAC_API_URL và trạng thái backend rồi tải lại trang.</p><button type="button" onClick={() => window.location.reload()} className="mt-4 rounded-lg bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-600">Tải lại</button></div></div>
+              <div className="h-full grid place-items-center bg-slate-100 px-6 text-center text-slate-800"><div><p className="text-lg font-semibold text-rose-600">Không thể kết nối backend</p><p className="mt-2 max-w-md text-sm text-slate-600">Dashboard vẫn hiển thị khi máy chủ sẵn sàng. Kiểm tra VITE_WIEVAC_API_URL và trạng thái backend rồi tải lại trang.</p><button type="button" onClick={() => window.location.reload()} className="mt-4 rounded-lg bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-600">Tải lại</button></div></div>
             ) : viewportMode === '3d' ? (
-              <React.Suspense fallback={<div className="h-full grid place-items-center bg-slate-950 text-slate-300"><div className="text-center"><div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" /><p className="font-semibold">Đang tải không gian 3D…</p></div></div>}>
+              <React.Suspense fallback={<div className="h-full grid place-items-center bg-slate-100 text-slate-700"><div className="text-center"><div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent" /><p className="font-semibold">Đang tải không gian 3D…</p></div></div>}>
                 <BuildingScene3D
                   areas={areas}
                   corridors={corridors}
@@ -895,7 +895,7 @@ function App() {
                 />
               </React.Suspense>
             ) : currentFloorAreas.length === 0 && mode !== 'edit' ? (
-              <div className="h-full grid place-items-center bg-slate-950 px-6 text-center text-slate-300"><div><p className="text-lg font-semibold">Tầng {activeFloor} chưa có khu vực</p><p className="mt-2 text-sm text-slate-500">Chuyển sang chế độ Thiết kế để thêm khu vực và hành lang.</p></div></div>
+              <div className="h-full grid place-items-center bg-slate-100 px-6 text-center text-slate-700"><div><p className="text-lg font-semibold">Tầng {activeFloor} chưa có khu vực</p><p className="mt-2 text-sm text-slate-500">Chuyển sang chế độ Thiết kế để thêm khu vực và hành lang.</p></div></div>
             ) : <MapCanvas
               mode={mode}
               editTool={editTool}

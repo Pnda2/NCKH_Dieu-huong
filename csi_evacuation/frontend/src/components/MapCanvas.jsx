@@ -169,8 +169,8 @@ const AreaNode = React.memo(function AreaNode({
         y={AREA_RADIUS + 4}
         width={104}
         height={18}
-        fill="rgba(15, 23, 42, 0.9)"
-        stroke="rgba(51, 65, 85, 0.8)"
+        fill="rgba(255, 255, 255, 0.95)"
+        stroke="#cbd5e1"
         strokeWidth={1}
         cornerRadius={4}
         listening={false}
@@ -180,7 +180,7 @@ const AreaNode = React.memo(function AreaNode({
         fontSize={10}
         fontStyle="bold"
         fontFamily="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
-        fill="#f8fafc"
+        fill="#0f172a"
         align="center"
         verticalAlign="middle"
         width={104}
@@ -299,14 +299,14 @@ const CorridorEdge = React.memo(function CorridorEdge({ corridor, areaA, areaB, 
       {/* Fill ratio label in view mode */}
       {mode === 'view' && running && len > 50 && !isBlocked && (
         <Group x={midX} y={midY}>
-          <Rect x={-18} y={-9} width={36} height={18} fill="rgba(15, 23, 42, 0.95)" stroke={ratio >= 0.8 ? 'rgba(239, 68, 68, 0.7)' : ratio >= 0.5 ? 'rgba(245, 158, 11, 0.7)' : 'rgba(34, 197, 94, 0.7)'} strokeWidth={1} cornerRadius={4} />
+          <Rect x={-18} y={-9} width={36} height={18} fill="#0f172a" stroke="#334155" strokeWidth={1} cornerRadius={4} />
           <Text
             x={-18} y={-9} width={36} height={18}
             text={`${Math.round(ratio * 100)}%`}
             fontSize={9}
             fontFamily="monospace, sans-serif"
             fontStyle="bold"
-            fill={ratio >= 0.8 ? '#f87171' : ratio >= 0.5 ? '#fbbf24' : '#4ade80'}
+            fill={ratio >= 0.8 ? '#fca5a5' : ratio >= 0.5 ? '#fcd34d' : '#86efac'}
             align="center"
             verticalAlign="middle"
             listening={false}
@@ -317,13 +317,13 @@ const CorridorEdge = React.memo(function CorridorEdge({ corridor, areaA, areaB, 
       {/* Corridor name label in edit mode */}
       {mode === 'edit' && len > 70 && (
         <Group x={midX} y={midY}>
-          <Rect x={-42} y={-10} width={84} height={20} fill="rgba(15, 23, 42, 0.92)" stroke="rgba(51, 65, 85, 0.8)" strokeWidth={1} cornerRadius={4} />
+          <Rect x={-42} y={-10} width={84} height={20} fill="rgba(255, 255, 255, 0.95)" stroke="#cbd5e1" strokeWidth={1} cornerRadius={4} />
           <Text
             x={-42} y={-10} width={84} height={20}
             text={corridor.name}
             fontSize={9}
             fontStyle="bold"
-            fill="#94a3b8"
+            fill="#334155"
             align="center"
             verticalAlign="middle"
             listening={false}
@@ -637,7 +637,7 @@ export default function MapCanvas({
     const dots = [];
     for (let xi = gridStartX; xi < gridEndX; xi++) {
       for (let yi = gridStartY; yi < gridEndY; yi++) {
-        dots.push(<Circle key={xi + '-' + yi} x={xi * 40 + 20} y={yi * 40 + 20} radius={1} fill="rgba(255, 255, 255, 0.08)" />);
+        dots.push(<Circle key={xi + '-' + yi} x={xi * 40 + 20} y={yi * 40 + 20} radius={1} fill="#cbd5e1" />);
       }
     }
     return dots;
@@ -683,7 +683,7 @@ export default function MapCanvas({
         onWheel={handleWheel}
         onClick={handleStageClick}
         onMouseMove={handleMouseMove}
-        style={{ background: '#090d16' }}
+        style={{ background: '#f1f5f9' }}
       >
         {/* Background image layer */}
         <Layer>
@@ -807,7 +807,7 @@ export default function MapCanvas({
       )}
       
       {/* Zoom / Pan Instructions overlay */}
-      <div className="absolute bottom-3 left-3 bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-800 text-[11px] text-slate-400 font-mono pointer-events-none shadow-lg">
+      <div className="absolute bottom-3 left-3 bg-slate-900/90 px-2.5 py-1 rounded border border-slate-700/80 text-[11px] text-slate-300 font-mono pointer-events-none shadow-md">
         ZOOM: {Math.round(stageScale * 100)}% · CUỘN/KÉO ĐỂ DI CHUYỂN
       </div>
     </div>
